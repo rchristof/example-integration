@@ -1,5 +1,4 @@
 import { Metadata } from "next";
-import Image from "next/image";
 import "./globals.css";
 
 export const metadata: Metadata = {
@@ -18,21 +17,7 @@ export default function RootLayout({
           {children}
         </div>
         <footer className="mt-12 flex items-center justify-center w-full h-24 border-t">
-          <a
-            className="flex items-center justify-center"
-            href="https://vercel.com"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Powered by{" "}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className="ml-2"
-              width="70"
-              height="16"
-            />
-          </a>
+          {/* Removido o texto "Powered by Vercel" e o logotipo */}
         </footer>
       </body>
     </html>

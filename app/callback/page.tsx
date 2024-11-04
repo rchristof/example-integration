@@ -14,8 +14,8 @@ export default function Page() {
   const [createPassword, setCreatePassword] = useState<string>(""); // Novo estado para a senha de criação de conta
   const [errorMessage, setErrorMessage] = useState<string | null>(null); // Novo estado para mensagens de erro
   const code = searchParams.get("code");
-  const [_, exchange] = useTransition();
   const next = searchParams.get("next");
+  const [_, exchange] = useTransition();
 
   useEffect(() => {
     if (!code) {
@@ -71,7 +71,7 @@ export default function Page() {
     const data = await response.json();
     if (response.ok) {
       console.log("Account created successfully:", data);
-      router.push(next!); // Redireciona para a página de planos em caso de sucesso
+      router.push(`/plans?next=${encodeURIComponent(next || "")}`); // Redireciona para a página de planos em caso de sucesso
     } else {
       console.error("Account creation failed:", data);
       setErrorMessage(data.message); // Define a mensagem de erro
@@ -97,7 +97,7 @@ export default function Page() {
     const data = await response.json();
     if (response.ok) {
       console.log("Account linked successfully:", data);
-      router.push("/plans"); // Redireciona para a página de planos em caso de sucesso
+      router.push(`/plans?next=${encodeURIComponent(next || "")}`); // Redireciona para a página de planos em caso de sucesso
     } else {
       console.error("Account linking failed:", data);
       setErrorMessage(data.message); // Define a mensagem de erro
@@ -107,7 +107,7 @@ export default function Page() {
   return (
     <div className="w-full max-w-2xl divide-y">
       <div className="py-4 flex items-center space-x-2 justify-center">
-        <h1 className="text-lg font-medium">Falkor Example Integration</h1>
+        <h1 className="text-lg font-medium">Vercel Example Integration</h1>
       </div>
       {errorMessage && (
         <div className="py-4 text-red-500">

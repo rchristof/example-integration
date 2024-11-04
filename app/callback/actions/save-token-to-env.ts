@@ -1,40 +1,37 @@
-// save-token-to-env.ts
+// save-token-to-env.ts (dentro da pasta actions)
 import type { NextApiRequest, NextApiResponse } from 'next';
 
 export async function saveTokenToEnv(
   accessToken: string,
-  jwtToken: string,
+  userApiKey: string,
   projectId: string,
-  teamId?: string
-) {
+  teamId: string
+): Promise<void> {
   try {
-    const url = `https://api.vercel.com/v10/projects/${projectId}/env?upsert=true${teamId ? `&teamId=${teamId}` : ''}`;
-
-    const response = await fetch(url, {
+    const result = await fetch(`https://api.vercel.com/v10/projects/${projectId}/env?teamId=${teamId}&upsert=true`, {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${accessToken}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        key: "API_URL",
-        value: jwtToken,
-        type: "plain",
-        target: ["preview"],
-        comment: "Token de autenticação para o projeto",
+        key: "USER_API_KEY",
+        value: userApiKey,
+        type: "sensitive", // Tipo de variável de ambiente com nível máximo de segurança
+        target: ["production", "preview"], // Exclui "development" do alvo para variáveis sensíveis
+        comment: "User's sensitive API key",
       }),
     });
 
-    const data = await response.json();
-    if (!response.ok) {
-      console.error("Erro ao salvar o token:", data);
-      throw new Error("Failed to save token to environment variables");
+    if (!result.ok) {
+      const errorData = await result.json();
+      console.error("Erro ao salvar a variável de ambiente:", errorData);
+      throw new Error("Failed to save the environment variable.");
     }
 
-    console.log("Token salvo com sucesso no projeto:", projectId);
-    return data;
+    console.log("Variável de ambiente 'sensitive' salva com sucesso.");
   } catch (error) {
-    console.error("Erro ao salvar o token na Vercel:", error);
+    console.error("Erro ao salvar a variável de ambiente:", error);
     throw error;
   }
 }

@@ -4,28 +4,25 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useEffect, useTransition } from "react";
 import { exchangeCodeForAccessToken } from "~/app/callback/actions/exchange-code-for-access-token";
 import { saveTokenToEnv } from "~/app/callback/actions/save-token-to-env";
-import { getUserProjects } from "~/app/callback/actions/get-user-projects";
 import { FaGithub } from "react-icons/fa";
 import { FcGoogle } from "react-icons/fc";
-import { FaChevronDown, FaChevronUp } from "react-icons/fa";
 
 export default function Page() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [accessToken, setAccessToken] = useState<string | null>(null);
+  const [teamId, setTeamId] = useState<string | null>(null);
   const [userInfo, setUserInfo] = useState<any>(null);
   const [email, setEmail] = useState<string>("");
   const [password, setPassword] = useState<string>("");
-  const [companyName, setCompanyName] = useState<string>(""); 
-  const [name, setName] = useState<string>(""); 
-  const [projects, setProjects] = useState<any[]>([]);
-  const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
+  const [companyName, setCompanyName] = useState<string>("");
+  const [name, setName] = useState<string>("");
   const [isLogin, setIsLogin] = useState(true);
-  const [jwtToken, setJwtToken] = useState<string | null>(null); 
+  const [isProjectSelection, setIsProjectSelection] = useState(false);
+  const [projects, setProjects] = useState<any[]>([]);
+  const [selectedProject, setSelectedProject] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [projectsDropdownOpen, setProjectsDropdownOpen] = useState(false); // controla o dropdown
   const code = searchParams.get("code");
-  const teamId = searchParams.get("teamId");
   const next = searchParams.get("next");
   const [_, exchange] = useTransition();
 
@@ -37,6 +34,7 @@ export default function Page() {
     exchange(async () => {
       const result = await exchangeCodeForAccessToken(code);
       setAccessToken(result.access_token);
+      setTeamId(result.team_id); // Salva o teamId para uso futuro
       fetchUserInfo(result.access_token);
     });
   }, [code]);
@@ -52,28 +50,24 @@ export default function Page() {
       const data = await response.json();
       setUserInfo(data.user);
       setEmail(data.user.email || "");
-      console.log("User info fetched successfully:", data.user);
     } catch (error) {
       console.error("Error fetching user info:", error);
     }
   };
 
-  const fetchProjects = async (token: string) => {
+  const fetchProjects = async () => {
     try {
-      const projects = await getUserProjects(token, teamId || undefined);
-      setProjects(projects);
-      console.log("Projects fetched successfully:", projects);
+      const response = await fetch("https://api.vercel.com/v9/projects", {
+        headers: {
+          "Authorization": `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+      });
+      const data = await response.json();
+      setProjects(data.projects || []);
     } catch (error) {
-      console.error("Erro ao buscar projetos:", error);
+      console.error("Error fetching projects:", error);
     }
-  };
-
-  const handleProjectSelection = (projectId: string) => {
-    setSelectedProjects((prevSelected) =>
-      prevSelected.includes(projectId)
-        ? prevSelected.filter((id) => id !== projectId)
-        : [...prevSelected, projectId]
-    );
   };
 
   const handleCreateAccount = async () => {
@@ -97,16 +91,15 @@ export default function Page() {
     });
 
     const data = await response.json();
-    console.log("API authentication response:", data);
+    console.log("Dados retornados pela API de autenticação:", data);
 
     if (response.ok) {
-      const token = data.jwtToken;
-      setJwtToken(token);
-      if (token && accessToken) {
-        console.log("Fetching projects...");
-        await fetchProjects(accessToken); 
+      const jwtToken = data.jwtToken;
+      if (jwtToken && accessToken) {
+        setIsProjectSelection(true);
+        fetchProjects();
       } else {
-        console.error("jwtToken or accessToken is missing");
+        console.error("jwtToken não está presente na resposta da API");
       }
     } else {
       setErrorMessage(data.message);
@@ -128,29 +121,59 @@ export default function Page() {
 
     const data = await response.json();
     if (response.ok) {
-      const token = data.jwtToken;
-      setJwtToken(token);
-      if (token && accessToken) {
-        console.log("Fetching projects...");
-        await fetchProjects(accessToken); 
+      const jwtToken = data.jwtToken;
+      if (jwtToken && accessToken) {
+        setIsProjectSelection(true);
+        fetchProjects();
       } else {
-        console.error("jwtToken or accessToken is missing");
+        console.error("jwtToken não está presente na resposta da API");
       }
     } else {
       setErrorMessage(data.message);
     }
   };
 
-  const handleSaveTokenToProjects = async () => {
-    if (jwtToken && accessToken) {
-      console.log("Saving token to selected projects...");
-      for (const projectId of selectedProjects) {
-        await saveTokenToEnv(accessToken, jwtToken, projectId, teamId); 
-      }
-      console.log("Token saved to projects. Redirecting...");
+  const handleSaveProjectSelection = async () => {
+    if (!selectedProject || !teamId || !accessToken) {
+      console.error("Projeto, teamId, ou accessToken não estão disponíveis.");
+      return;
+    }
+    try {
+      await saveTokenToEnv(accessToken, "your_sensitive_api_key_here", selectedProject, teamId); // Substitua "your_sensitive_api_key_here" pelo valor real do userApiKey
       router.push(`/plans?next=${encodeURIComponent(next || "")}`);
-    } else {
-      console.error("Error: jwtToken or accessToken is missing");
+    } catch (error) {
+      console.error("Erro ao salvar o token e projetos:", error);
+      setErrorMessage("Erro ao salvar o token e projetos");
+    }
+  };
+
+  const handleSelectPlan = async (serviceId: string, productTierId: string) => {
+    try {
+      const userApiKeyResponse = await fetch("/api/get-user-api-key"); // Recupera a chave da variável de ambiente
+      const { userApiKey } = await userApiKeyResponse.json();
+
+      const response = await fetch("http://127.0.0.1:5000/subscription", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${userApiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          serviceId,
+          productTierId,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("Erro na requisição de assinatura:", errorData);
+        setErrorMessage("Erro ao processar a assinatura.");
+      } else {
+        console.log("Plano selecionado com sucesso.");
+      }
+    } catch (error) {
+      console.error("Erro ao selecionar plano:", error);
+      setErrorMessage("Erro ao selecionar plano.");
     }
   };
 
@@ -165,11 +188,17 @@ export default function Page() {
           overflow: hidden;
         }
       `}</style>
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8">
-        {!jwtToken ? (
+      <div
+        className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8"
+        style={{ minHeight: "550px", width: "450px" }}
+      >
+        <img src="/falkor_logo.png" alt="Falkor Logo" width={96} height={96} className="mx-auto mb-6" />
+
+        {!isProjectSelection ? (
           <>
-            <img src="/falkor_logo.png" alt="Falkor Logo" width={96} height={96} className="mx-auto mb-6" />
-            <h2 className="text-2xl font-semibold text-center mb-6">{isLogin ? "Login to your account" : "Create your account"}</h2>
+            <h2 className="text-2xl font-semibold text-center mb-6">
+              {isLogin ? "Login to your account" : "Create your account"}
+            </h2>
 
             {errorMessage && (
               <div className="text-red-500 mb-4">
@@ -210,7 +239,6 @@ export default function Page() {
                 onChange={(e) => setPassword(e.target.value)}
                 className="border p-3 rounded w-full"
               />
-
               {isLogin ? (
                 <button
                   className="bg-black text-white py-2 w-full rounded"
@@ -226,7 +254,6 @@ export default function Page() {
                   Sign Up
                 </button>
               )}
-
               <div className="flex justify-between items-center">
                 {isLogin && (
                   <a href="#" className="text-sm text-gray-500">Forgot Password</a>
@@ -250,7 +277,7 @@ export default function Page() {
                       <FcGoogle size={24} />
                     </button>
                     <button className="bg-gray-100 p-3 rounded-full">
-                      <FaGithub size={24} color="#333" />
+                      <FaGithub size={24} />
                     </button>
                   </div>
                 </div>
@@ -258,36 +285,30 @@ export default function Page() {
             </div>
           </>
         ) : (
-          <div>
-            <h2 className="text-2xl font-semibold text-center mb-6">Select Your Projects</h2>
-            <button
-              onClick={() => setProjectsDropdownOpen(!projectsDropdownOpen)}
-              className="bg-gray-200 text-black w-full flex justify-between items-center p-3 rounded"
-            >
-              Projects
-              {projectsDropdownOpen ? <FaChevronUp /> : <FaChevronDown />}
-            </button>
-            {projectsDropdownOpen && (
-              <ul className="space-y-2 mt-2">
+          <>
+            <h2 className="text-2xl font-semibold text-center mb-6">Select Your Project</h2>
+            <div className="space-y-2 max-h-48 overflow-y-auto">
+              <select
+                className="w-full p-3 border rounded bg-white"
+                value={selectedProject || ""}
+                onChange={(e) => setSelectedProject(e.target.value)}
+              >
+                <option value="" disabled>Select a project</option>
                 {projects.map((project) => (
-                  <li key={project.id} className="flex items-center justify-between border p-3 rounded">
-                    <span>{project.name}</span>
-                    <input
-                      type="checkbox"
-                      checked={selectedProjects.includes(project.id)}
-                      onChange={() => handleProjectSelection(project.id)}
-                    />
-                  </li>
+                  <option key={project.id} value={project.id}>
+                    {project.name}
+                  </option>
                 ))}
-              </ul>
-            )}
+              </select>
+            </div>
             <button
               className="bg-black text-white py-2 w-full rounded mt-4"
-              onClick={handleSaveTokenToProjects}
+              onClick={handleSaveProjectSelection}
+              disabled={!selectedProject}
             >
               Save and Continue
             </button>
-          </div>
+          </>
         )}
       </div>
     </div>

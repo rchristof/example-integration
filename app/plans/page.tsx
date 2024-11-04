@@ -25,7 +25,7 @@ export default function Plans() {
           <h2 className="text-xl font-semibold">Basic Plan</h2>
           <p className="mt-2">Description of the basic plan.</p>
           <button
-            className="bg-blue-500 text-white px-4 py-2 rounded mt-4"
+            className="bg-black text-white px-4 py-2 rounded mt-4"
             onClick={() => handleSubscribe("Basic")}
           >
             Subscribe
@@ -35,7 +35,7 @@ export default function Plans() {
           <h2 className="text-xl font-semibold">Pro Plan</h2>
           <p className="mt-2">Description of the pro plan.</p>
           <button
-            className="bg-blue-500 text-white px-4 py-2 rounded mt-4"
+            className="bg-black text-white px-4 py-2 rounded mt-4"
             onClick={() => handleSubscribe("Pro")}
           >
             Subscribe
@@ -45,7 +45,7 @@ export default function Plans() {
           <h2 className="text-xl font-semibold">Enterprise Plan</h2>
           <p className="mt-2">Description of the enterprise plan.</p>
           <button
-            className="bg-blue-500 text-white px-4 py-2 rounded mt-4"
+            className="bg-black text-white px-4 py-2 rounded mt-4"
             onClick={() => handleSubscribe("Enterprise")}
           >
             Subscribe

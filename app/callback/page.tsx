@@ -3,6 +3,11 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useEffect, useTransition } from "react";
 import { exchangeCodeForAccessToken } from "~/app/callback/actions/exchange-code-for-access-token";
+import { saveTokenToEnv } from "~/app/callback/actions/save-token-to-env";
+import { getUserProjects } from "~/app/callback/actions/get-user-projects";
+import { FaGithub } from "react-icons/fa";
+import { FcGoogle } from "react-icons/fc";
+import { FaChevronDown, FaChevronUp } from "react-icons/fa";
 
 export default function Page() {
   const router = useRouter();
@@ -11,9 +16,16 @@ export default function Page() {
   const [userInfo, setUserInfo] = useState<any>(null);
   const [email, setEmail] = useState<string>("");
   const [password, setPassword] = useState<string>("");
-  const [createPassword, setCreatePassword] = useState<string>(""); // Novo estado para a senha de criação de conta
-  const [errorMessage, setErrorMessage] = useState<string | null>(null); // Novo estado para mensagens de erro
+  const [companyName, setCompanyName] = useState<string>(""); 
+  const [name, setName] = useState<string>(""); 
+  const [projects, setProjects] = useState<any[]>([]);
+  const [selectedProjects, setSelectedProjects] = useState<string[]>([]);
+  const [isLogin, setIsLogin] = useState(true);
+  const [jwtToken, setJwtToken] = useState<string | null>(null); 
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [projectsDropdownOpen, setProjectsDropdownOpen] = useState(false); // controla o dropdown
   const code = searchParams.get("code");
+  const teamId = searchParams.get("teamId");
   const next = searchParams.get("next");
   const [_, exchange] = useTransition();
 
@@ -37,13 +49,31 @@ export default function Page() {
           "Content-Type": "application/json",
         },
       });
-
       const data = await response.json();
-      console.log("Fetched user info:", data.user); // Adiciona um log para verificar os dados do usuário
       setUserInfo(data.user);
+      setEmail(data.user.email || "");
+      console.log("User info fetched successfully:", data.user);
     } catch (error) {
       console.error("Error fetching user info:", error);
     }
+  };
+
+  const fetchProjects = async (token: string) => {
+    try {
+      const projects = await getUserProjects(token, teamId || undefined);
+      setProjects(projects);
+      console.log("Projects fetched successfully:", projects);
+    } catch (error) {
+      console.error("Erro ao buscar projetos:", error);
+    }
+  };
+
+  const handleProjectSelection = (projectId: string) => {
+    setSelectedProjects((prevSelected) =>
+      prevSelected.includes(projectId)
+        ? prevSelected.filter((id) => id !== projectId)
+        : [...prevSelected, projectId]
+    );
   };
 
   const handleCreateAccount = async () => {
@@ -52,40 +82,42 @@ export default function Page() {
       return;
     }
 
-    console.log("Creating account with user info:", userInfo); // Log dos dados do usuário
-
     const response = await fetch("http://127.0.0.1:5000/customer-user-signup", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${accessToken}`, // Use o token de acesso do Vercel
+        "Authorization": `Bearer ${accessToken}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        email: userInfo.email,
-        legalCompanyName: userInfo.name, // Ajuste conforme necessário
-        name: userInfo.username, // Ajuste conforme necessário
-        password: createPassword, // Use a senha inserida pelo usuário
+        email,
+        legalCompanyName: companyName,
+        name,
+        password,
       }),
     });
 
     const data = await response.json();
+    console.log("API authentication response:", data);
+
     if (response.ok) {
-      console.log("Account created successfully:", data);
-      router.push(`/plans?next=${encodeURIComponent(next || "")}`); // Redireciona para a página de planos em caso de sucesso
+      const token = data.jwtToken;
+      setJwtToken(token);
+      if (token && accessToken) {
+        console.log("Fetching projects...");
+        await fetchProjects(accessToken); 
+      } else {
+        console.error("jwtToken or accessToken is missing");
+      }
     } else {
-      console.error("Account creation failed:", data);
-      setErrorMessage(data.message); // Define a mensagem de erro
+      setErrorMessage(data.message);
     }
   };
 
   const handleLinkAccount = async () => {
-    console.log("Linking account with email:", email); // Log do email
-    console.log("Linking account with password:", password); // Log da senha
-
     const response = await fetch("http://127.0.0.1:5000/customer-user-signin", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${accessToken}`, // Use o token de acesso do Vercel
+        "Authorization": `Bearer ${accessToken}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
@@ -96,60 +128,167 @@ export default function Page() {
 
     const data = await response.json();
     if (response.ok) {
-      console.log("Account linked successfully:", data);
-      router.push(`/plans?next=${encodeURIComponent(next || "")}`); // Redireciona para a página de planos em caso de sucesso
+      const token = data.jwtToken;
+      setJwtToken(token);
+      if (token && accessToken) {
+        console.log("Fetching projects...");
+        await fetchProjects(accessToken); 
+      } else {
+        console.error("jwtToken or accessToken is missing");
+      }
     } else {
-      console.error("Account linking failed:", data);
-      setErrorMessage(data.message); // Define a mensagem de erro
+      setErrorMessage(data.message);
+    }
+  };
+
+  const handleSaveTokenToProjects = async () => {
+    if (jwtToken && accessToken) {
+      console.log("Saving token to selected projects...");
+      for (const projectId of selectedProjects) {
+        await saveTokenToEnv(accessToken, jwtToken, projectId, teamId); 
+      }
+      console.log("Token saved to projects. Redirecting...");
+      router.push(`/plans?next=${encodeURIComponent(next || "")}`);
+    } else {
+      console.error("Error: jwtToken or accessToken is missing");
     }
   };
 
   return (
-    <div className="w-full max-w-2xl divide-y">
-      <div className="py-4 flex items-center space-x-2 justify-center">
-        <h1 className="text-lg font-medium">Vercel Example Integration</h1>
-      </div>
-      {errorMessage && (
-        <div className="py-4 text-red-500">
-          <p>{errorMessage}</p>
-        </div>
-      )}
-      <div className="py-4 flex flex-col items-center space-y-4">
-        <button
-          className="bg-blue-500 text-white px-4 py-2 rounded"
-          onClick={handleCreateAccount}
-        >
-          Create New Account
-        </button>
-        <input
-          type="password"
-          placeholder="Create Password"
-          value={createPassword}
-          onChange={(e) => setCreatePassword(e.target.value)}
-          className="border p-2 rounded w-full"
-        />
-      </div>
-      <div className="py-4 flex flex-col items-center space-y-4">
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="border p-2 rounded w-full"
-        />
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="border p-2 rounded w-full"
-        />
-        <button
-          className="bg-green-500 text-white px-4 py-2 rounded"
-          onClick={handleLinkAccount}
-        >
-          Link Existing Account
-        </button>
+    <div className="flex flex-col items-center justify-center min-h-screen bg-white p-6">
+      <style jsx global>{`
+        html,
+        body {
+          margin: 0;
+          padding: 0;
+          border: 0;
+          overflow: hidden;
+        }
+      `}</style>
+      <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8">
+        {!jwtToken ? (
+          <>
+            <img src="/falkor_logo.png" alt="Falkor Logo" width={96} height={96} className="mx-auto mb-6" />
+            <h2 className="text-2xl font-semibold text-center mb-6">{isLogin ? "Login to your account" : "Create your account"}</h2>
+
+            {errorMessage && (
+              <div className="text-red-500 mb-4">
+                <p>{errorMessage}</p>
+              </div>
+            )}
+
+            <div className="space-y-4">
+              <input
+                type="email"
+                placeholder={isLogin ? "Email" : `Email ${email}`}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="border p-3 rounded w-full"
+              />
+              {!isLogin && (
+                <>
+                  <input
+                    type="text"
+                    placeholder="Enter your company name"
+                    value={companyName}
+                    onChange={(e) => setCompanyName(e.target.value)}
+                    className="border p-3 rounded w-full"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Enter your name"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="border p-3 rounded w-full"
+                  />
+                </>
+              )}
+              <input
+                type="password"
+                placeholder={isLogin ? "Enter your password" : "Create a password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="border p-3 rounded w-full"
+              />
+
+              {isLogin ? (
+                <button
+                  className="bg-black text-white py-2 w-full rounded"
+                  onClick={handleLinkAccount}
+                >
+                  Login
+                </button>
+              ) : (
+                <button
+                  className="bg-black text-white py-2 w-full rounded"
+                  onClick={handleCreateAccount}
+                >
+                  Sign Up
+                </button>
+              )}
+
+              <div className="flex justify-between items-center">
+                {isLogin && (
+                  <a href="#" className="text-sm text-gray-500">Forgot Password</a>
+                )}
+                <p className="text-sm">
+                  {isLogin ? "You’re new in here?" : "Already have an account?"}{" "}
+                  <span
+                    className="text-blue-500 cursor-pointer"
+                    onClick={() => setIsLogin(!isLogin)}
+                  >
+                    {isLogin ? "Create Account" : "Login"}
+                  </span>
+                </p>
+              </div>
+
+              {isLogin && (
+                <div className="text-center mt-4">
+                  <p className="text-sm text-gray-500">Or login with</p>
+                  <div className="flex justify-center space-x-4 mt-2">
+                    <button className="bg-gray-100 p-3 rounded-full">
+                      <FcGoogle size={24} />
+                    </button>
+                    <button className="bg-gray-100 p-3 rounded-full">
+                      <FaGithub size={24} color="#333" />
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </>
+        ) : (
+          <div>
+            <h2 className="text-2xl font-semibold text-center mb-6">Select Your Projects</h2>
+            <button
+              onClick={() => setProjectsDropdownOpen(!projectsDropdownOpen)}
+              className="bg-gray-200 text-black w-full flex justify-between items-center p-3 rounded"
+            >
+              Projects
+              {projectsDropdownOpen ? <FaChevronUp /> : <FaChevronDown />}
+            </button>
+            {projectsDropdownOpen && (
+              <ul className="space-y-2 mt-2">
+                {projects.map((project) => (
+                  <li key={project.id} className="flex items-center justify-between border p-3 rounded">
+                    <span>{project.name}</span>
+                    <input
+                      type="checkbox"
+                      checked={selectedProjects.includes(project.id)}
+                      onChange={() => handleProjectSelection(project.id)}
+                    />
+                  </li>
+                ))}
+              </ul>
+            )}
+            <button
+              className="bg-black text-white py-2 w-full rounded mt-4"
+              onClick={handleSaveTokenToProjects}
+            >
+              Save and Continue
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

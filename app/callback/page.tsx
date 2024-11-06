@@ -1,9 +1,10 @@
-"use client";
+"use client"
+// callback/page.tsx
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useEffect, useTransition } from "react";
 import { exchangeCodeForAccessToken } from "~/app/callback/actions/exchange-code-for-access-token";
-import { saveTokenToEnv } from "~/app/callback/actions/save-token-to-env";
+import { saveSharedEnvVariable } from "~/app/callback/actions/save-secret";
 import { FaGithub } from "react-icons/fa";
 import { FcGoogle } from "react-icons/fc";
 
@@ -21,9 +22,10 @@ export default function Page() {
   const [isProjectSelection, setIsProjectSelection] = useState(false);
   const [projects, setProjects] = useState<any[]>([]);
   const [selectedProject, setSelectedProject] = useState<string | null>(null);
+  const [jwtToken, setJwtToken] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const code = searchParams.get("code");
-  const next = searchParams.get("next");
+  const code = searchParams?.get("code") || null;
+  const next = searchParams?.get("next") || null;
   const [_, exchange] = useTransition();
 
   useEffect(() => {
@@ -34,7 +36,7 @@ export default function Page() {
     exchange(async () => {
       const result = await exchangeCodeForAccessToken(code);
       setAccessToken(result.access_token);
-      setTeamId(result.team_id); // Salva o teamId para uso futuro
+      setTeamId(result.team_id);
       fetchUserInfo(result.access_token);
     });
   }, [code]);
@@ -43,7 +45,7 @@ export default function Page() {
     try {
       const response = await fetch("https://api.vercel.com/v2/user", {
         headers: {
-          "Authorization": `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
       });
@@ -59,7 +61,7 @@ export default function Page() {
     try {
       const response = await fetch("https://api.vercel.com/v9/projects", {
         headers: {
-          "Authorization": `Bearer ${accessToken}`,
+          Authorization: `Bearer ${accessToken}`,
           "Content-Type": "application/json",
         },
       });
@@ -79,7 +81,7 @@ export default function Page() {
     const response = await fetch("http://127.0.0.1:5000/customer-user-signup", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${accessToken}`,
+        Authorization: `Bearer ${accessToken}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
@@ -97,6 +99,7 @@ export default function Page() {
       const jwtToken = data.jwtToken;
       if (jwtToken && accessToken) {
         setIsProjectSelection(true);
+        setJwtToken(jwtToken);
         fetchProjects();
       } else {
         console.error("jwtToken não está presente na resposta da API");
@@ -107,39 +110,47 @@ export default function Page() {
   };
 
   const handleLinkAccount = async () => {
-    const response = await fetch("http://127.0.0.1:5000/customer-user-signin", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${accessToken}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        email,
-        password,
-      }),
-    });
+    try {
+      const adminToken = process.env.BEARER_ADMIN_TOKEN;
+      const response = await fetch("https://api.omnistrate.cloud/2022-09-01-00/customer-user-signin", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer $(adminToken)`, // Token de admin das variaveis de ambiente locais
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          email,
+          password,
+        }),
+      });
 
-    const data = await response.json();
-    if (response.ok) {
-      const jwtToken = data.jwtToken;
-      if (jwtToken && accessToken) {
-        setIsProjectSelection(true);
-        fetchProjects();
+      const data = await response.json();
+      if (response.ok) {
+        const jwtToken = data.jwtToken;
+        if (jwtToken && accessToken) {
+          setJwtToken(jwtToken);
+          setIsProjectSelection(true);
+          fetchProjects();
+        } else {
+          console.error("jwtToken não está presente na resposta da API");
+        }
       } else {
-        console.error("jwtToken não está presente na resposta da API");
+        setErrorMessage(data.message);
+        console.error("Erro ao fazer login:", data);
       }
-    } else {
-      setErrorMessage(data.message);
+    } catch (error) {
+      console.error("Erro ao conectar com a API do Omnistrate:", error);
+      setErrorMessage("Erro ao conectar com a API do Omnistrate.");
     }
   };
 
   const handleSaveProjectSelection = async () => {
-    if (!selectedProject || !teamId || !accessToken) {
-      console.error("Projeto, teamId, ou accessToken não estão disponíveis.");
+    if (!selectedProject || !teamId || !accessToken || !jwtToken) {
+      console.error("Projeto, teamId, accessToken ou jwtToken não estão disponíveis.");
       return;
     }
     try {
-      await saveTokenToEnv(accessToken, "your_sensitive_api_key_here", selectedProject, teamId); // Substitua "your_sensitive_api_key_here" pelo valor real do userApiKey
+      // await saveSharedEnvVariable(accessToken, jwtToken, teamId);
       router.push(`/plans?next=${encodeURIComponent(next || "")}`);
     } catch (error) {
       console.error("Erro ao salvar o token e projetos:", error);
@@ -147,35 +158,6 @@ export default function Page() {
     }
   };
 
-  const handleSelectPlan = async (serviceId: string, productTierId: string) => {
-    try {
-      const userApiKeyResponse = await fetch("/api/get-user-api-key"); // Recupera a chave da variável de ambiente
-      const { userApiKey } = await userApiKeyResponse.json();
-
-      const response = await fetch("http://127.0.0.1:5000/subscription", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${userApiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          serviceId,
-          productTierId,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error("Erro na requisição de assinatura:", errorData);
-        setErrorMessage("Erro ao processar a assinatura.");
-      } else {
-        console.log("Plano selecionado com sucesso.");
-      }
-    } catch (error) {
-      console.error("Erro ao selecionar plano:", error);
-      setErrorMessage("Erro ao selecionar plano.");
-    }
-  };
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-white p-6">

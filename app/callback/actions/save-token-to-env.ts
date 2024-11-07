@@ -1,4 +1,4 @@
-// save-token-to-env.ts (dentro da pasta actions)
+// callback/actions/save-token-to-env.ts
 import type { NextApiRequest, NextApiResponse } from 'next';
 
 export async function saveTokenToEnv(
@@ -17,9 +17,9 @@ export async function saveTokenToEnv(
       body: JSON.stringify({
         key: "USER_API_KEY",
         value: userApiKey,
-        type: "sensitive", // Tipo de variável de ambiente com nível máximo de segurança
+        type: "secret", // Tipo de variável de ambiente com nível máximo de segurança
         target: ["production", "preview"], // Exclui "development" do alvo para variáveis sensíveis
-        comment: "User's sensitive API key",
+        comment: "User's instance keys",
       }),
     });
 

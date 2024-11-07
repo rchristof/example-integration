@@ -1,10 +1,11 @@
-"use client"
 // callback/page.tsx
+
+"use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, useEffect, useTransition } from "react";
 import { exchangeCodeForAccessToken } from "~/app/callback/actions/exchange-code-for-access-token";
-import { saveSharedEnvVariable } from "~/app/callback/actions/save-secret";
+import { saveTokenToEnv } from "~/app/callback/actions/save-token-to-env";
 import { FaGithub } from "react-icons/fa";
 import { FcGoogle } from "react-icons/fc";
 
@@ -20,6 +21,7 @@ export default function Page() {
   const [name, setName] = useState<string>("");
   const [isLogin, setIsLogin] = useState(true);
   const [isProjectSelection, setIsProjectSelection] = useState(false);
+  const [isPlanSelection, setIsPlanSelection] = useState(false);
   const [projects, setProjects] = useState<any[]>([]);
   const [selectedProject, setSelectedProject] = useState<string | null>(null);
   const [jwtToken, setJwtToken] = useState<string | null>(null);
@@ -111,11 +113,10 @@ export default function Page() {
 
   const handleLinkAccount = async () => {
     try {
-      const adminToken = process.env.BEARER_ADMIN_TOKEN;
       const response = await fetch("https://api.omnistrate.cloud/2022-09-01-00/customer-user-signin", {
         method: "POST",
         headers: {
-          Authorization: `Bearer $(adminToken)`, // Token de admin das variaveis de ambiente locais
+          Authorization: `Bearer 123`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
@@ -144,20 +145,85 @@ export default function Page() {
     }
   };
 
-  const handleSaveProjectSelection = async () => {
+  const handleSaveProjectSelection = () => {
     if (!selectedProject || !teamId || !accessToken || !jwtToken) {
       console.error("Projeto, teamId, accessToken ou jwtToken não estão disponíveis.");
       return;
     }
-    try {
-      // await saveSharedEnvVariable(accessToken, jwtToken, teamId);
-      router.push(`/plans?next=${encodeURIComponent(next || "")}`);
-    } catch (error) {
-      console.error("Erro ao salvar o token e projetos:", error);
-      setErrorMessage("Erro ao salvar o token e projetos");
-    }
+    setIsPlanSelection(true); // Agora a próxima etapa é a seleção do plano
   };
 
+  const handleSubscribe = async (plan: string) => {
+    try {
+      if (plan === "Basic") {
+        const response = await fetch("https://api.omnistrate.cloud/2022-09-01-00/subscription", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${jwtToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            serviceId: "s-KgFDwg5vBS",
+            productTierId: "pt-055K4xaRsm",
+          }),
+        });
+        
+        const subscriptionData = await response.json();
+        if (!response.ok) throw new Error(subscriptionData.message);
+
+        const subscriptionId = subscriptionData.subscriptionId;
+
+        const instanceResponse = await fetch(
+          `https://api.omnistrate.cloud/2022-09-01-00/resource-instance/sp-JvkxkPhinN/falkordb/v1/dev/falkordb-free-customer-hosted/falkordb-free-falkordb-customer-hosted-model-omnistrate-multi-tenancy/free?subscriptionId=${subscriptionId}`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${jwtToken}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              cloud_provider: "aws",
+              region: "us-west-2",
+              requestParams: {
+                name: "MyFreeInstance",
+                falkordbPassword: "testPassword",
+                falkordbUser: "sfdsdfsdf",
+              },
+            }),
+          }
+        );
+
+        const instanceData = await instanceResponse.json();
+        if (!instanceResponse.ok) throw new Error(instanceData.message);
+
+        const instanceId = instanceData.instanceId;
+
+        const instanceDetailsResponse = await fetch(
+          `https://api.omnistrate.cloud/2022-09-01-00/resource-instance/sp-JvkxkPhinN/falkordb/v1/dev/falkordb-free-customer-hosted/falkordb-free-falkordb-customer-hosted-model-omnistrate-multi-tenancy/free/instance/${instanceId}?subscriptionId=${subscriptionId}`,
+          {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${jwtToken}`,
+              "Content-Type": "application/json",
+            },
+          }
+        );
+
+        const instanceDetails = await instanceDetailsResponse.json();
+        await saveTokenToEnv(accessToken, JSON.stringify(instanceDetails), selectedProject, teamId);
+        console.log("Instância gratuita implantada e detalhes armazenados.");
+      }
+
+      if (next) {
+        router.push(next);
+      } else {
+        console.error("Next URL is not provided");
+      }
+    } catch (error) {
+      console.error("Erro ao processar a assinatura:", error);
+      setErrorMessage("Erro ao processar a assinatura.");
+    }
+  };
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-white p-6">
@@ -176,7 +242,7 @@ export default function Page() {
       >
         <img src="/falkor_logo.png" alt="Falkor Logo" width={96} height={96} className="mx-auto mb-6" />
 
-        {!isProjectSelection ? (
+        {!isProjectSelection && !isPlanSelection ? (
           <>
             <h2 className="text-2xl font-semibold text-center mb-6">
               {isLogin ? "Login to your account" : "Create your account"}
@@ -250,23 +316,9 @@ export default function Page() {
                   </span>
                 </p>
               </div>
-
-              {isLogin && (
-                <div className="text-center mt-4">
-                  <p className="text-sm text-gray-500">Or login with</p>
-                  <div className="flex justify-center space-x-4 mt-2">
-                    <button className="bg-gray-100 p-3 rounded-full">
-                      <FcGoogle size={24} />
-                    </button>
-                    <button className="bg-gray-100 p-3 rounded-full">
-                      <FaGithub size={24} />
-                    </button>
-                  </div>
-                </div>
-              )}
             </div>
           </>
-        ) : (
+        ) : isProjectSelection && !isPlanSelection ? (
           <>
             <h2 className="text-2xl font-semibold text-center mb-6">Select Your Project</h2>
             <div className="space-y-2 max-h-48 overflow-y-auto">
@@ -290,6 +342,24 @@ export default function Page() {
             >
               Save and Continue
             </button>
+          </>
+        ) : (
+          <>
+            <h2 className="text-2xl font-semibold text-center mb-6">Choose a Plan</h2>
+            {errorMessage && <p className="text-red-500 mb-4">{errorMessage}</p>}
+            <div className="space-y-4">
+              <div className="border p-4 rounded">
+                <h2 className="text-xl font-semibold">Basic Plan</h2>
+                <p className="mt-2">Descrição do plano básico.</p>
+                <button
+                  className="bg-black text-white px-4 py-2 rounded mt-4"
+                  onClick={() => handleSubscribe("Basic")}
+                >
+                  Subscribe
+                </button>
+              </div>
+              {/* Outros planos */}
+            </div>
           </>
         )}
       </div>

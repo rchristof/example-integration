@@ -2,7 +2,7 @@
 
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
-import { saveTokenToEnv } from "~/app/callback/actions/save-token-to-env";
+import { saveTokenToEnv } from "~/app/actions/save-token-to-env";
 
 export default function Plans() {
   const router = useRouter();

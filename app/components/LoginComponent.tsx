@@ -17,13 +17,28 @@ export default function LoginComponent({ onNext }: LoginComponentProps) {
   const [name, setName] = useState("");
   const [isLogin, setIsLogin] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  
+  // Novo estado para gerenciar a confirmação de email
+  const [needsEmailConfirmation, setNeedsEmailConfirmation] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Armazenar as credenciais usadas no registro para reutilização no login
+  const [registrationCredentials, setRegistrationCredentials] = useState<{ email: string; password: string } | null>(null);
 
   const handleCreateAccount = async () => {
     try {
-      const response = await fetch("http://127.0.0.1:5000/customer-user-signup", {
+      setIsLoading(true);
+      setErrorMessage(null);
+
+      const apikey = process.env.NEXT_PUBLIC_ADMIN_BEARER;
+      if (!apikey) {
+        throw new Error("Chave de API ausente.");
+      }
+
+      const response = await fetch("https://api.omnistrate.cloud/2022-09-01-00/customer-user-signup", {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${accessToken}`,
+          Authorization: `Bearer ${apikey}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
@@ -34,33 +49,45 @@ export default function LoginComponent({ onNext }: LoginComponentProps) {
         }),
       });
 
-      const data = await response.json();
-
+      // A API de registro não retorna nada, então evitamos chamar response.json()
       if (response.ok) {
-        const jwtToken = data.jwtToken;
-        if (jwtToken) {
-          setJwtToken(jwtToken);
-          onNext();
-        } else {
-          console.error("jwtToken não está presente na resposta da API");
-        }
+        // Registro bem-sucedido, mas email precisa ser confirmado
+        setNeedsEmailConfirmation(true);
+        // Armazenar as credenciais para login posterior
+        setRegistrationCredentials({ email, password });
       } else {
-        setErrorMessage(data.message);
+        // Tenta extrair a mensagem de erro, se disponível
+        let errorData;
+        try {
+          errorData = await response.json();
+        } catch (e) {
+          // Resposta não é JSON
+          throw new Error("Erro ao criar conta.");
+        }
+        setErrorMessage(errorData.message || "Erro ao criar conta.");
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Erro ao criar conta:", error);
-      setErrorMessage("Erro ao criar conta.");
+      setErrorMessage(error.message || "Erro ao criar conta.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleLinkAccount = async () => {
     try {
+      setIsLoading(true);
+      setErrorMessage(null);
+
       const apikey = process.env.NEXT_PUBLIC_ADMIN_BEARER;
-      console.log(apikey);
+      if (!apikey) {
+        throw new Error("Chave de API ausente.");
+      }
+
       const response = await fetch("https://api.omnistrate.cloud/2022-09-01-00/customer-user-signin", {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${apikey}`, // Substitua pela sua chave de API
+          Authorization: `Bearer ${apikey}`, // Substitua pela chave de API
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
@@ -69,7 +96,18 @@ export default function LoginComponent({ onNext }: LoginComponentProps) {
         }),
       });
 
-      const data = await response.json();
+      // Tenta analisar a resposta como JSON, mas lida com respostas vazias
+      let data: { jwtToken?: string } = {};
+      const text = await response.text();
+      if (text) {
+        try {
+          data = JSON.parse(text);
+        } catch (jsonError) {
+          console.error("Erro ao analisar JSON:", jsonError);
+          throw new Error("Resposta da API inválida.");
+        }
+      }
+
       if (response.ok) {
         const jwtToken = data.jwtToken;
         if (jwtToken) {
@@ -77,13 +115,30 @@ export default function LoginComponent({ onNext }: LoginComponentProps) {
           onNext();
         } else {
           console.error("jwtToken não está presente na resposta da API");
+          setErrorMessage("Falha ao obter token de autenticação.");
         }
       } else {
-        setErrorMessage(data.message);
+        // Tenta obter a mensagem de erro da resposta
+        const apiMessage = data.message || "Erro ao fazer login.";
+        setErrorMessage(apiMessage);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Erro ao fazer login:", error);
-      setErrorMessage("Erro ao conectar com a API do Omnistrate.");
+      setErrorMessage(error.message || "Erro ao conectar com a API do Omnistrate.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Função para tentar login após confirmação de email
+  const handleConfirmEmailAndLogin = async () => {
+    // Garantir que as credenciais de registro estão disponíveis
+    if (registrationCredentials) {
+      setEmail(registrationCredentials.email);
+      setPassword(registrationCredentials.password);
+      await handleLinkAccount();
+    } else {
+      setErrorMessage("Credenciais de registro não encontradas. Por favor, faça login manualmente.");
     }
   };
 
@@ -99,62 +154,104 @@ export default function LoginComponent({ onNext }: LoginComponentProps) {
         </div>
       )}
 
-      <div className="space-y-4">
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="border p-3 rounded w-full"
-        />
-        {!isLogin && (
-          <>
-            <input
-              type="text"
-              placeholder="Digite o nome da sua empresa"
-              value={companyName}
-              onChange={(e) => setCompanyName(e.target.value)}
-              className="border p-3 rounded w-full"
-            />
-            <input
-              type="text"
-              placeholder="Digite seu nome"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              className="border p-3 rounded w-full"
-            />
-          </>
-        )}
-        <input
-          type="password"
-          placeholder={isLogin ? "Digite sua senha" : "Crie uma senha"}
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="border p-3 rounded w-full"
-        />
-        {isLogin ? (
-          <button className="bg-black text-white py-2 w-full rounded" onClick={handleLinkAccount}>
-            Login
+      {/* Condicional para exibir a mensagem de confirmação de email */}
+      {needsEmailConfirmation ? (
+        <div className="text-center">
+          <p className="mb-4">
+            Um email de confirmação foi enviado para <strong>{email}</strong>. Por favor, confirme seu email para continuar.
+          </p>
+          <button
+            className="bg-black text-white py-2 px-4 rounded"
+            onClick={handleConfirmEmailAndLogin}
+            disabled={isLoading}
+          >
+            {isLoading ? "Processando..." : "Já confirmei meu email"}
           </button>
-        ) : (
-          <button className="bg-black text-white py-2 w-full rounded" onClick={handleCreateAccount}>
-            Inscrever-se
-          </button>
-        )}
-        <div className="flex justify-between items-center">
-          {isLogin && (
-            <a href="#" className="text-sm text-gray-500">
-              Esqueceu a senha
-            </a>
-          )}
-          <p className="text-sm">
-            {isLogin ? "Novo por aqui?" : "Já tem uma conta?"}{" "}
-            <span className="text-blue-500 cursor-pointer" onClick={() => setIsLogin(!isLogin)}>
-              {isLogin ? "Crie uma conta" : "Login"}
-            </span>
+          <p className="mt-4 text-sm">
+            Caso não tenha recebido o email, verifique sua caixa de spam ou{" "}
+            <a href="#" className="text-blue-500 underline">
+              solicite outro
+            </a>.
           </p>
         </div>
-      </div>
+      ) : (
+        <div className="space-y-4">
+          <div className="space-y-4">
+            <input
+              type="email"
+              placeholder="Email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="border p-3 rounded w-full"
+              disabled={isLoading && !isLogin}
+            />
+            {!isLogin && (
+              <>
+                <input
+                  type="text"
+                  placeholder="Digite o nome da sua empresa"
+                  value={companyName}
+                  onChange={(e) => setCompanyName(e.target.value)}
+                  className="border p-3 rounded w-full"
+                  disabled={isLoading}
+                />
+                <input
+                  type="text"
+                  placeholder="Digite seu nome"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  className="border p-3 rounded w-full"
+                  disabled={isLoading}
+                />
+              </>
+            )}
+            <input
+              type="password"
+              placeholder={isLogin ? "Digite sua senha" : "Crie uma senha"}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="border p-3 rounded w-full"
+              disabled={isLoading && !isLogin}
+            />
+            {isLogin ? (
+              <button
+                className="bg-black text-white py-2 w-full rounded"
+                onClick={handleLinkAccount}
+                disabled={isLoading}
+              >
+                {isLoading ? "Processando..." : "Login"}
+              </button>
+            ) : (
+              <button
+                className="bg-black text-white py-2 w-full rounded"
+                onClick={handleCreateAccount}
+                disabled={isLoading}
+              >
+                {isLoading ? "Processando..." : "Inscrever-se"}
+              </button>
+            )}
+            <div className="flex justify-between items-center">
+              {isLogin && (
+                <a href="#" className="text-sm text-gray-500">
+                  Esqueceu a senha
+                </a>
+              )}
+              <p className="text-sm">
+                {isLogin ? "Novo por aqui?" : "Já tem uma conta?"}{" "}
+                <span
+                  className="text-blue-500 cursor-pointer"
+                  onClick={() => {
+                    setIsLogin(!isLogin);
+                    setErrorMessage(null); // Limpa mensagens de erro ao trocar de modo
+                  }}
+                >
+                  {isLogin ? "Crie uma conta" : "Login"}
+                </span>
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

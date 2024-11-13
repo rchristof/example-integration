@@ -1,37 +1,27 @@
-// callback/actions/save-token-to-env.ts
-import type { NextApiRequest, NextApiResponse } from 'next';
+// app/actions/save-token-to-env.ts
 
-export async function saveTokenToEnv(
-  accessToken: string,
-  userApiKey: string,
-  projectId: string,
-  teamId: string
-): Promise<void> {
+export async function saveTokenToEnv(accessToken: string, instanceDetails: string, projectId: string, teamId: string) {
   try {
-    const result = await fetch(`https://api.vercel.com/v10/projects/${projectId}/env?teamId=${teamId}&upsert=true`, {
+    const response = await fetch(`https://api.vercel.com/v8/projects/${projectId}/env?teamId=${teamId}`, {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${accessToken}`,
+        Authorization: `Bearer ${accessToken}`,
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        key: "USER_API_KEY",
-        value: userApiKey,
-        type: "secret", // Tipo de variável de ambiente com nível máximo de segurança
-        target: ["production", "preview"], // Exclui "development" do alvo para variáveis sensíveis
-        comment: "User's instance keys",
+        type: "encrypted",
+        key: "INSTANCE_DETAILS",
+        value: instanceDetails,
+        target: ["production", "preview", "development"],
       }),
     });
-
-    if (!result.ok) {
-      const errorData = await result.json();
-      console.error("Erro ao salvar a variável de ambiente:", errorData);
-      throw new Error("Failed to save the environment variable.");
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.error || "Falha ao salvar o token nas variáveis de ambiente");
     }
-
-    console.log("Variável de ambiente 'sensitive' salva com sucesso.");
+    return data;
   } catch (error) {
-    console.error("Erro ao salvar a variável de ambiente:", error);
+    console.error("Erro ao salvar o token no env:", error);
     throw error;
   }
 }

@@ -1,3 +1,55 @@
+# todo:
+### Login:
+- [x] Login using email (using omnistrate api)(get the user bearer);
+- [ ] Login using a provider (google or github) [low priority, resolve the other pending issues first];
+
+### Register:
+- [x] Register using the api;
+- [x] After registration, wait for email confirmation and login (to get the User Bearer);
+
+### Project Selection:
+- [x] Get the list of projects in the vercel team (usign vercel api);
+- [x] Select a project (to get the project id);
+
+### Subscription:
+- [x] List plans options;
+- [x] Check if the user already has an active subscription;
+  - If the user already have an active subscription:
+    - [x] Indicate and let select which one will be used in the project (only for free subs right now);
+    - [x] Checks to see if there is already an active instance:
+      - [ ] If you already have an active instance, list the existing instances separated by subscription plan and allow selection (its already implemented in the deploy screen, but i will change to this step to reduce click amount) [1h];
+  - If the user does not have an active subscription:
+    - [x] Create one with the plan option selected (using the subs api);
+    - [x] Go straight to the deploy form;
+
+### Deploy Instance Form:
+- [x] Let the user enter the data for the creation of the instance and call the deploy api (only for free);
+- [ ] Save the necessary data (username, pass) to vercel env variables (use vercel api) (the action to call the api and save the variables are already made) [1h];
+- [ ] Create a job to save the hostname and port to vercel env variables, when this data is ready;
+
+### General Improvements:
+- [ ] Move calls to external APIs to internal API routes in Next.js to protect API keys [5h];
+- [ ] Make a job to update admin credentials, on the server [3h];
+- [ ] Improve error messages (to the user); [2h]
+  - [ ] Login;
+  - [ ] Register;
+  - [ ] Plan Selection;
+  - [ ] Subscription;
+  - [ ] Instance;
+- [ ] Improve Visual Style: [5h]
+  - [ ] Login;
+  - [ ] Register;
+  - [ ] Plan Selection;
+  - [ ] Subscription;
+  - [ ] Instance;
+- [ ] Test all screens: [2h]
+  - [ ] Login;
+  - [ ] Register;
+  - [ ] Plan Selection;
+  - [ ] Subscription;
+  - [ ] Instance;
+
+
 # Vercel Example Integration
 
 This app is an example integration, built with Next.js.

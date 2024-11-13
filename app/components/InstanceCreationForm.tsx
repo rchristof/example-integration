@@ -51,12 +51,9 @@ export default function InstanceCreationForm({
       setIsLoading(true);
       setErrorMessage(null);
 
-      //1: Deploy the free instance
+      // 1. Deploy the free instance
       const deployInstanceResponse = await fetch(
-        `https://api.omnistrate.cloud/2022-09-01-00/resource-instance/` +
-          `sp-JvkxkPhinN/falkordb/v1/dev/falkordb-free-customer-hosted/` +
-          `falkordb-free-falkordb-customer-hosted-model-omnistrate-multi-tenancy/` +
-          `free?subscriptionId=${subscriptionId}`,
+        `https://api.omnistrate.cloud/2022-09-01-00/resource-instance/sp-JvkxkPhinN/falkordb/v1/dev/falkordb-free-customer-hosted/falkordb-free-falkordb-customer-hosted-model-omnistrate-multi-tenancy/free?subscriptionId=${subscriptionId}`,
         {
           method: "POST",
           headers: {
@@ -69,7 +66,7 @@ export default function InstanceCreationForm({
             requestParams: {
               name: instanceName,
               falkordbPassword: falkorDBPassword,
-              falkordbUser: falkorDBUser,
+              falkorDBUser: falkorDBUser,
             },
           }),
         }
@@ -83,7 +80,7 @@ export default function InstanceCreationForm({
         throw new Error(deployInstanceDataRaw || "Falha ao implantar a instância gratuita.");
       }
 
-      // Extract instanceId from the response
+      // 2. Extrair instanceId da resposta
       let instanceId;
       try {
         const deployInstanceData = JSON.parse(deployInstanceDataRaw);
@@ -98,20 +95,10 @@ export default function InstanceCreationForm({
 
       console.log("Instance ID:", instanceId);
 
-      //2: Save the instance name and password instead of fetching details
-      const instanceDetails = {
-        instanceId,
-        instanceName,
-        falkorDBUser,
-        falkorDBPassword,
-      };
+      // 3. Salvar apenas o ID da instância selecionada
+      await saveTokenToEnv(accessToken, instanceId, selectedProject, teamId);
 
-      console.log("Instance Details to Save:", instanceDetails);
-
-      // Salve os detalhes da instância
-      await saveTokenToEnv(accessToken, JSON.stringify(instanceDetails), selectedProject, teamId);
-
-      console.log("Instância implantada e detalhes salvos com sucesso.");
+      console.log("Instância implantada e ID salvo com sucesso.");
 
       onSuccess(); // Chamar o callback onSuccess
 

@@ -18,6 +18,8 @@
     - [x] Indicate and let select which one will be used in the project (only for free subs right now);
     - [x] Checks to see if there is already an active instance:
       - [ ] If you already have an active instance, list the existing instances separated by subscription plan and allow selection (its already implemented in the deploy screen, but i will change to this step to reduce click amount) [1h];
+      [**There is a problem preventing this task to be completed:
+        When a instance is created using the api I can't request the details or see the instance in the dashboard**]
   - If the user does not have an active subscription:
     - [x] Create one with the plan option selected (using the subs api);
     - [x] Go straight to the deploy form;

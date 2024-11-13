@@ -54,15 +54,55 @@ export default function PlanSelectionComponent({ onBack, selectedProject }: Plan
         console.log("Assinaturas do Usuário:", data);
 
         // Verificar se o usuário possui o plano básico
-        const basicSubscription = data.subscriptions.find(
-          (sub: any) => sub.productTierId === "pt-YhJSEGRCYv" && sub.status === "ACTIVE"
-        );
+        if (data.subscriptions && Array.isArray(data.subscriptions)) {
+          const basicSubscription = data.subscriptions.find(
+            (sub: any) => sub.productTierId === "pt-YhJSEGRCYv" && sub.status === "ACTIVE"
+          );
 
-        if (basicSubscription) {
-          setHasBasicPlan(true);
-          setBasicSubscriptionId(basicSubscription.id);
+          if (basicSubscription) {
+            setHasBasicPlan(true);
+            setBasicSubscriptionId(basicSubscription.id);
+          } else {
+            setHasBasicPlan(false);
+          }
+        } else if (data.ids && Array.isArray(data.ids)) {
+          // Se a resposta contém ids, precisamos buscar os detalhes das assinaturas
+          if (data.ids.length === 0) {
+            setHasBasicPlan(false);
+          } else {
+            // Buscar detalhes de cada assinatura
+            const subscriptionsPromises = data.ids.map(async (id: string) => {
+              const subResponse = await fetch(`https://api.omnistrate.cloud/2022-09-01-00/subscription/${id}`, {
+                method: "GET",
+                headers: {
+                  Authorization: `Bearer ${jwtToken}`,
+                  "Content-Type": "application/json",
+                },
+              });
+              if (!subResponse.ok) {
+                const subData = await subResponse.json();
+                throw new Error(subData.message || "Erro ao obter detalhes da assinatura.");
+              }
+              return subResponse.json();
+            });
+
+            const subscriptions = await Promise.all(subscriptionsPromises);
+
+            // Agora, procurar o plano básico nas assinaturas detalhadas
+            const basicSubscription = subscriptions.find(
+              (sub: any) => sub.productTierId === "pt-YhJSEGRCYv" && sub.status === "ACTIVE"
+            );
+
+            if (basicSubscription) {
+              setHasBasicPlan(true);
+              setBasicSubscriptionId(basicSubscription.id);
+            } else {
+              setHasBasicPlan(false);
+            }
+          }
         } else {
-          setHasBasicPlan(false);
+          // Formato de resposta inesperado
+          throw new Error("Formato de resposta da API de assinaturas inválido.");
         }
       } catch (error: any) {
         console.error("Erro ao obter assinaturas:", error);

@@ -112,6 +112,7 @@ export default function LoginComponent({ onNext }: LoginComponentProps) {
         const jwtToken = data.jwtToken;
         if (jwtToken) {
           setJwtToken(jwtToken);
+          console.log(jwtToken);
           onNext();
         } else {
           console.error("jwtToken não está presente na resposta da API");

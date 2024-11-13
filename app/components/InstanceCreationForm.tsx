@@ -98,37 +98,24 @@ export default function InstanceCreationForm({
 
       console.log("Instance ID:", instanceId);
 
-      //2: Get the instance details
-      const instanceDetailsResponse = await fetch(
-        `https://api.omnistrate.cloud/2022-09-01-00/resource-instance/` +
-          `sp-JvkxkPhinN/falkordb/v1/dev/falkordb-free-customer-hosted/` +
-          `falkordb-free-falkordb-customer-hosted-model-omnistrate-multi-tenancy/` +
-          `free/instance/${instanceId}?subscriptionId=${subscriptionId}`,
-        {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${jwtToken}`,
-            "Content-Type": "application/json",
-          },
-        }
-      );
+      //2: Save the instance name and password instead of fetching details
+      const instanceDetails = {
+        instanceId,
+        instanceName,
+        falkorDBUser,
+        falkorDBPassword,
+      };
 
-      const instanceDetails = await instanceDetailsResponse.json();
+      console.log("Instance Details to Save:", instanceDetails);
 
-      if (!instanceDetailsResponse.ok) {
-        console.error("Erro ao obter detalhes da instância:", instanceDetails);
-        throw new Error(instanceDetails.message || "Falha ao obter detalhes da instância.");
-      }
-
-      console.log("Detalhes da instância:", instanceDetails); // tirar depois
-
+      // Salve os detalhes da instância
       await saveTokenToEnv(accessToken, JSON.stringify(instanceDetails), selectedProject, teamId);
 
-      console.log("Instância implantada e detalhes salvos com sucesso."); // tirar depois
+      console.log("Instância implantada e detalhes salvos com sucesso.");
 
       onSuccess(); // Chamar o callback onSuccess
 
-      // Redirecionar para next
+      // Redirecionar para next, se necessário
       if (next) {
         router.push(next);
       } else {

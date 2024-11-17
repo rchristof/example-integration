@@ -23,12 +23,13 @@ export default function PlanSelectionComponent({ onBack, selectedProject }: Plan
   const [showInstanceForm, setShowInstanceForm] = useState<boolean>(false);
   const [existingInstanceIds, setExistingInstanceIds] = useState<string[]>([]);
   const [selectedInstanceId, setSelectedInstanceId] = useState<string | null>(null);
+  const [instancePassword, setInstancePassword] = useState<string>("");
 
   const router = useRouter();
   const searchParams = useSearchParams();
   const next = searchParams?.get("next") || null;
 
-  // Fetch user's subscriptions and related instances on component mount
+  // Buscar assinaturas e instâncias do usuário ao montar o componente
   useEffect(() => {
     const fetchSubscriptionsAndInstances = async () => {
       try {
@@ -95,7 +96,7 @@ export default function PlanSelectionComponent({ onBack, selectedProject }: Plan
           const fetchInstances = async () => {
             try {
               const instancesResponse = await fetch(
-                `https://api.omnistrate.cloud/2022-09-01-00/resource-instance/sp-JvkxkPhinN/falkordb/v1/dev/falkordb-free-customer-hosted/falkordb-free-falkordb-customer-hosted-model-omnistrate-multi-tenancy/free?subscriptionId=${basicSubscription.id}`,
+                `https://api.omnistrate.cloud/2022-09-01-00/resource-instance/sp-JvkxkPhinN/falkordb/v1/prod/falkordb-free-customer-hosted/falkordb-free-falkordb-customer-hosted-model-omnistrate-multi-tenancy/free?subscriptionId=${basicSubscription.id}`,
                 {
                   method: "GET",
                   headers: {
@@ -148,7 +149,7 @@ export default function PlanSelectionComponent({ onBack, selectedProject }: Plan
 
   const handleSubscribe = async () => {
     try {
-      if (!jwtToken || !accessToken || !teamId) {
+      if (!jwtToken || !accessToken) {
         throw new Error("Tokens de autenticação ausentes.");
       }
 
@@ -196,7 +197,7 @@ export default function PlanSelectionComponent({ onBack, selectedProject }: Plan
       const fetchInstances = async () => {
         try {
           const instancesResponse = await fetch(
-            `https://api.omnistrate.cloud/2022-09-01-00/resource-instance/sp-JvkxkPhinN/falkordb/v1/dev/falkordb-free-customer-hosted/falkordb-free-falkordb-customer-hosted-model-omnistrate-multi-tenancy/free?subscriptionId=${subscriptionId}`,
+            `https://api.omnistrate.cloud/2022-09-01-00/resource-instance/sp-JvkxkPhinN/falkordb/v1/prod/falkordb-free-customer-hosted/falkordb-free-falkordb-customer-hosted-model-omnistrate-multi-tenancy/free?subscriptionId=${subscriptionId}`,
             {
               method: "GET",
               headers: {
@@ -252,17 +253,75 @@ export default function PlanSelectionComponent({ onBack, selectedProject }: Plan
         return;
       }
 
-      if (!accessToken || !teamId) {
-        throw new Error("Tokens de autenticação ausentes.");
+      if (!jwtToken) {
+        throw new Error("Token de autenticação ausente.");
+      }
+
+      if (!instancePassword) {
+        setErrorMessage("Por favor, insira a senha da instância.");
+        return;
       }
 
       setIsLoading(true);
       setErrorMessage(null);
 
-      // Salvar o ID da instância selecionada
-      await saveTokenToEnv(accessToken, selectedInstanceId, selectedProject, teamId);
+      // Construir a URL para obter os detalhes da instância selecionada
+      const instanceDetailsUrl = `https://api.omnistrate.cloud/2022-09-01-00/resource-instance/sp-JvkxkPhinN/falkordb/v1/prod/falkordb-free-customer-hosted/falkordb-free-falkordb-customer-hosted-model-omnistrate-multi-tenancy/free/${selectedInstanceId}?subscriptionId=${basicSubscriptionId}`;
 
-      console.log("ID da instância selecionada salvo com sucesso.");
+      // Fazer a chamada à API para obter os detalhes da instância
+      const instanceDetailsResponse = await fetch(instanceDetailsUrl, {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${jwtToken}`,
+          "Content-Type": "application/json",
+        },
+      });
+
+      // Verificar o Content-Type e processar a resposta
+      const contentType = instanceDetailsResponse.headers.get("Content-Type");
+      let instanceDetailsData;
+      if (contentType && contentType.includes("application/json")) {
+        instanceDetailsData = await instanceDetailsResponse.json();
+      } else {
+        const text = await instanceDetailsResponse.text();
+        throw new Error(`Resposta inesperada da API: ${text}`);
+      }
+
+      if (!instanceDetailsResponse.ok) {
+        throw new Error(instanceDetailsData.message || "Erro ao obter detalhes da instância.");
+      }
+
+      // Exibir os detalhes da instância no console
+      console.log("Detalhes da Instância Selecionada:", instanceDetailsData);
+
+      // Extrair falkordbUser dos detalhes da instância
+      const falkordbUser =
+        instanceDetailsData.result_params?.falkordbUser || instanceDetailsData.result_params?.falkorDBUser;
+
+      if (!falkordbUser) {
+        throw new Error("Não foi possível obter 'falkordbUser' dos detalhes da instância.");
+      }
+
+      // Imprimir falkordbUser e a senha no console
+      console.log("falkordbUser:", falkordbUser);
+      console.log("Senha da Instância fornecida pelo usuário:", instancePassword);
+
+      // Salvar as credenciais nas variáveis de ambiente
+      if (!accessToken) {
+        throw new Error("Token de acesso do Vercel ausente.");
+      }
+
+      await saveTokenToEnv(
+        accessToken,
+        [
+          { key: "FALKORDB_USER", value: falkordbUser },
+          { key: "FALKORDB_PASSWORD", value: instancePassword },
+        ],
+        selectedProject,
+        teamId
+      );
+
+      console.log("Dados da instância selecionada salvos com sucesso.");
 
       setSuccessMessage("Instância selecionada salva com sucesso!");
 
@@ -284,60 +343,46 @@ export default function PlanSelectionComponent({ onBack, selectedProject }: Plan
     setShowInstanceForm(true);
   };
 
-  const handleSuccess = () => {
-    setSuccessMessage("Instância implantada com sucesso!");
-    setShowInstanceForm(false);
-    setSelectedInstanceId(null);
-    
-    // Recarregar a lista de instâncias após a criação
-    const fetchInstances = async () => {
-      try {
-        if (!basicSubscriptionId) return;
+  const handleSuccess = async (instanceUser: string, instancePassword: string) => {
+    try {
+      setSuccessMessage("Instância implantada com sucesso!");
+      setShowInstanceForm(false);
+      setSelectedInstanceId(null);
 
-        const instancesResponse = await fetch(
-          `https://api.omnistrate.cloud/2022-09-01-00/resource-instance/sp-JvkxkPhinN/falkordb/v1/dev/falkordb-free-customer-hosted/falkordb-free-falkordb-customer-hosted-model-omnistrate-multi-tenancy/free?subscriptionId=${basicSubscriptionId}`,
-          {
-            method: "GET",
-            headers: {
-              Authorization: `Bearer ${jwtToken}`,
-              "Content-Type": "application/json",
-            },
-          }
-        );
-
-        const contentType = instancesResponse.headers.get("Content-Type");
-        let instancesData;
-        if (contentType && contentType.includes("application/json")) {
-          instancesData = await instancesResponse.json();
-        } else {
-          const text = await instancesResponse.text();
-          throw new Error(`Resposta inesperada da API: ${text}`);
-        }
-
-        if (!instancesResponse.ok) {
-          throw new Error(instancesData.message || "Erro ao obter instâncias.");
-        }
-
-        console.log("Instâncias Existentes:", instancesData);
-
-        if (instancesData.ids && Array.isArray(instancesData.ids) && instancesData.ids.length > 0) {
-          setExistingInstanceIds(instancesData.ids);
-        } else {
-          setExistingInstanceIds([]);
-        }
-      } catch (error: any) {
-        console.error("Erro ao obter instâncias existentes:", error);
-        setErrorMessage(error.message || "Erro ao obter instâncias existentes.");
+      // Salvar as credenciais nas variáveis de ambiente
+      if (!accessToken) {
+        throw new Error("Token de acesso do Vercel ausente.");
       }
-    };
 
-    fetchInstances();
+      await saveTokenToEnv(
+        accessToken,
+        [
+          { key: "FALKORDB_USER", value: instanceUser },
+          { key: "FALKORDB_PASSWORD", value: instancePassword },
+        ],
+        selectedProject,
+        teamId
+      );
+
+      console.log("Dados da instância criada salvos com sucesso.");
+
+      // Redirecionar o usuário se a URL 'next' estiver disponível
+      if (next) {
+        router.push(next);
+      } else {
+        console.error("URL Next não fornecida");
+      }
+    } catch (error: any) {
+      console.error("Erro ao salvar as variáveis de ambiente:", error);
+      setErrorMessage(error.message || "Erro ao salvar as variáveis de ambiente.");
+    }
   };
 
   const handleCancel = () => {
     // Resetar estados
     setShowInstanceForm(false);
     setSelectedInstanceId(null);
+    setInstancePassword("");
   };
 
   const handleCancelSubscription = async () => {
@@ -391,7 +436,7 @@ export default function PlanSelectionComponent({ onBack, selectedProject }: Plan
 
           {showInstanceForm ? (
             // Exibir o formulário de criação de instância
-            basicSubscriptionId && accessToken && teamId && jwtToken ? (
+            basicSubscriptionId && accessToken && jwtToken ? (
               <InstanceCreationForm
                 subscriptionId={basicSubscriptionId}
                 accessToken={accessToken}
@@ -429,6 +474,18 @@ export default function PlanSelectionComponent({ onBack, selectedProject }: Plan
                 </div>
                 {selectedInstanceId && (
                   <div>
+                    {/* Campo para o usuário inserir a senha da instância */}
+                    <div>
+                      <label className="block font-medium">Senha da Instância</label>
+                      <input
+                        type="password"
+                        className="w-full p-2 border rounded"
+                        value={instancePassword}
+                        onChange={(e) => setInstancePassword(e.target.value)}
+                        placeholder="Digite a senha da instância"
+                      />
+                    </div>
+
                     <button
                       className="bg-black text-white px-4 py-2 rounded mt-4"
                       onClick={handleSelectInstance}

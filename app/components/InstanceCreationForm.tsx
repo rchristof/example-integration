@@ -3,16 +3,14 @@
 "use client";
 
 import { useState } from "react";
-import { saveTokenToEnv } from "../actions/save-token-to-env";
-import { useRouter, useSearchParams } from "next/navigation";
 
 interface InstanceCreationFormProps {
   subscriptionId: string;
   accessToken: string;
   selectedProject: string;
-  teamId: string;
+  teamId?: string;
   jwtToken: string;
-  onSuccess: () => void;
+  onSuccess: (instanceUser: string, instancePassword: string) => void;
   onCancel: () => void;
 }
 
@@ -25,89 +23,95 @@ export default function InstanceCreationForm({
   onSuccess,
   onCancel,
 }: InstanceCreationFormProps) {
-  const [cloudProvider, setCloudProvider] = useState<string>("aws");
-  const [region, setRegion] = useState<string>("us-east-1");
   const [instanceName, setInstanceName] = useState<string>("");
-  const [falkorDBUser, setFalkorDBUser] = useState<string>("");
-  const [falkorDBPassword, setFalkorDBPassword] = useState<string>("");
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [instanceUser, setInstanceUser] = useState<string>("");
+  const [instancePassword, setInstancePassword] = useState<string>("");
 
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const next = searchParams?.get("next") || null;
+  const [selectedProvider, setSelectedProvider] = useState<string>("");
+  const [selectedRegion, setSelectedRegion] = useState<string>("");
+
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  // Opções fixas de provedores
+  const providers = [
+    { id: "aws", name: "AWS" },
+    { id: "gcp", name: "GCP" },
+  ];
+
+  // Opções de regiões dependentes do provedor selecionado
+  const regions = {
+    aws: [
+      { id: "ap-south-1", name: "Asia Pacific (Mumbai)" },
+      { id: "eu-west-1", name: "EU (Ireland)" },
+      { id: "us-east-1", name: "US East (N. Virginia)" },
+      { id: "us-east-2", name: "US East (Ohio)" },
+      { id: "us-west-2", name: "US West (Oregon)" },
+    ],
+    gcp: [
+      { id: "asia-south1", name: "Mumbai" },
+      { id: "europe-west1", name: "Belgium" },
+      { id: "me-west1", name: "Tel Aviv" },
+      { id: "us-central1", name: "Iowa" },
+      { id: "us-east1", name: "South Carolina" },
+    ],
+  };
 
   const handleCreateInstance = async () => {
     try {
-      if (!jwtToken || !accessToken || !teamId) {
-        throw new Error("Tokens de autenticação ausentes.");
-      }
-
-      if (!instanceName || !falkorDBUser || !falkorDBPassword) {
-        setErrorMessage("Por favor, preencha todos os campos obrigatórios.");
+      if (
+        !selectedProvider ||
+        !selectedRegion ||
+        !instanceName ||
+        !instanceUser ||
+        !instancePassword
+      ) {
+        setErrorMessage("Por favor, preencha todos os campos.");
         return;
       }
 
       setIsLoading(true);
       setErrorMessage(null);
 
-      // 1. Deploy the free instance
-      const deployInstanceResponse = await fetch(
-        `https://api.omnistrate.cloud/2022-09-01-00/resource-instance/sp-JvkxkPhinN/falkordb/v1/dev/falkordb-free-customer-hosted/falkordb-free-falkordb-customer-hosted-model-omnistrate-multi-tenancy/free?subscriptionId=${subscriptionId}`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${jwtToken}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            cloud_provider: cloudProvider,
-            region: region,
-            requestParams: {
-              name: instanceName,
-              falkordbPassword: falkorDBPassword,
-              falkorDBUser: falkorDBUser,
-            },
-          }),
-        }
-      );
+      // Dados para a criação da instância
+      const instanceData = {
+        cloud_provider: selectedProvider,
+        region: selectedRegion,
+        requestParams: {
+          name: instanceName,
+          falkordbUser: instanceUser,
+          falkordbPassword: instancePassword,
+        },
+      };
 
-      const deployInstanceDataRaw = await deployInstanceResponse.text();
-      console.log("Deploy Instance Data (raw):", deployInstanceDataRaw);
+      // Construir a URL correta para criar a instância, incluindo subscriptionId como query parameter
+      const createInstanceUrl = `https://api.omnistrate.cloud/2022-09-01-00/resource-instance/sp-JvkxkPhinN/falkordb/v1/prod/falkordb-free-customer-hosted/falkordb-free-falkordb-customer-hosted-model-omnistrate-multi-tenancy/free?subscriptionId=${subscriptionId}`;
 
-      if (!deployInstanceResponse.ok) {
-        console.error("Erro na implantação da instância:", deployInstanceDataRaw);
-        throw new Error(deployInstanceDataRaw || "Falha ao implantar a instância gratuita.");
+      // Fazer a chamada para criar a instância
+      const response = await fetch(createInstanceUrl, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${jwtToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(instanceData),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Erro ao criar a instância.");
       }
 
-      // 2. Extrair instanceId da resposta
-      let instanceId;
-      try {
-        const deployInstanceData = JSON.parse(deployInstanceDataRaw);
-        instanceId = deployInstanceData.instanceId || deployInstanceData.id;
-      } catch (e) {
-        instanceId = deployInstanceDataRaw.replace(/^"|"$/g, "");
-      }
-
+      const instanceId = data.instanceId || data.id;
       if (!instanceId) {
-        throw new Error("instanceId não encontrado na resposta da API.");
+        throw new Error("ID da instância não retornado pela API.");
       }
 
-      console.log("Instance ID:", instanceId);
+      console.log("Instância criada com sucesso:", instanceId);
 
-      // 3. Salvar apenas o ID da instância selecionada
-      await saveTokenToEnv(accessToken, instanceId, selectedProject, teamId);
-
-      console.log("Instância implantada e ID salvo com sucesso.");
-
-      onSuccess(); // Chamar o callback onSuccess
-
-      // Redirecionar para next, se necessário
-      if (next) {
-        router.push(next);
-      } else {
-        console.error("URL Next não fornecida");
-      }
+      // Chamar a função onSuccess passando os dados necessários
+      onSuccess(instanceUser, instancePassword);
     } catch (error: any) {
       console.error("Erro ao criar a instância:", error);
       setErrorMessage(error.message || "Erro ao criar a instância.");
@@ -116,35 +120,48 @@ export default function InstanceCreationForm({
     }
   };
 
+  // Obter as regiões disponíveis com base no provedor selecionado
+  const availableRegions = selectedProvider ? regions[selectedProvider] : [];
+
   return (
-    <div className="mt-4 space-y-4">
-      {errorMessage && <p className="text-red-500">{errorMessage}</p>}
-      <div>
-        <label className="block font-medium">Cloud Provider</label>
+    <div className="mt-4">
+      <h3 className="text-lg font-semibold">Criar Nova Instância</h3>
+      {errorMessage && <p className="text-red-500 mt-2">{errorMessage}</p>}
+      <div className="mt-2">
+        <label className="block font-medium">Provedor</label>
         <select
           className="w-full p-2 border rounded"
-          value={cloudProvider}
-          onChange={(e) => setCloudProvider(e.target.value)}
+          value={selectedProvider}
+          onChange={(e) => {
+            setSelectedProvider(e.target.value);
+            setSelectedRegion(""); // Resetar a região ao mudar o provedor
+          }}
         >
-          <option value="aws">AWS</option>
-          <option value="google cloud">Google Cloud</option>
+          <option value="">Selecione um provedor</option>
+          {providers.map((provider) => (
+            <option key={provider.id} value={provider.id}>
+              {provider.name}
+            </option>
+          ))}
         </select>
       </div>
-      <div>
+      <div className="mt-2">
         <label className="block font-medium">Região</label>
         <select
           className="w-full p-2 border rounded"
-          value={region}
-          onChange={(e) => setRegion(e.target.value)}
+          value={selectedRegion}
+          onChange={(e) => setSelectedRegion(e.target.value)}
+          disabled={!selectedProvider}
         >
-          <option value="ap-south-1">ap-south-1</option>
-          <option value="eu-west-1">eu-west-1</option>
-          <option value="us-east-1">us-east-1</option>
-          <option value="us-east-2">us-east-2</option>
-          <option value="us-west-1">us-west-1</option>
+          <option value="">Selecione uma região</option>
+          {availableRegions.map((region) => (
+            <option key={region.id} value={region.id}>
+              {region.name} ({region.id})
+            </option>
+          ))}
         </select>
       </div>
-      <div>
+      <div className="mt-2">
         <label className="block font-medium">Nome da Instância</label>
         <input
           type="text"
@@ -154,37 +171,38 @@ export default function InstanceCreationForm({
           placeholder="Digite o nome da instância"
         />
       </div>
-      <div>
-        <label className="block font-medium">Usuário FalkorDB</label>
+      <div className="mt-2">
+        <label className="block font-medium">Usuário da Instância</label>
         <input
           type="text"
           className="w-full p-2 border rounded"
-          value={falkorDBUser}
-          onChange={(e) => setFalkorDBUser(e.target.value)}
-          placeholder="Digite o usuário FalkorDB"
+          value={instanceUser}
+          onChange={(e) => setInstanceUser(e.target.value)}
+          placeholder="Digite o usuário da instância"
         />
       </div>
-      <div>
-        <label className="block font-medium">Senha FalkorDB</label>
+      <div className="mt-2">
+        <label className="block font-medium">Senha da Instância</label>
         <input
           type="password"
           className="w-full p-2 border rounded"
-          value={falkorDBPassword}
-          onChange={(e) => setFalkorDBPassword(e.target.value)}
-          placeholder="Digite a senha FalkorDB"
+          value={instancePassword}
+          onChange={(e) => setInstancePassword(e.target.value)}
+          placeholder="Digite a senha da instância"
         />
       </div>
-
-      <button
-        className="bg-black text-white px-4 py-2 rounded mt-4"
-        onClick={handleCreateInstance}
-        disabled={isLoading}
-      >
-        {isLoading ? "Processando..." : "Criar Instância"}
-      </button>
-      <button className="text-gray-500 mt-2" onClick={onCancel} disabled={isLoading}>
-        Cancelar
-      </button>
+      <div className="mt-4">
+        <button
+          className="bg-black text-white px-4 py-2 rounded"
+          onClick={handleCreateInstance}
+          disabled={isLoading}
+        >
+          {isLoading ? "Criando..." : "Criar Instância"}
+        </button>
+        <button className="ml-2 px-4 py-2 rounded" onClick={onCancel} disabled={isLoading}>
+          Cancelar
+        </button>
+      </div>
     </div>
   );
 }

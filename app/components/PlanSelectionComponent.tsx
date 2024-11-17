@@ -295,8 +295,16 @@ export default function PlanSelectionComponent({ onBack, selectedProject }: Plan
       console.log("Detalhes da Instância Selecionada:", instanceDetailsData);
 
       // Extrair falkordbUser dos detalhes da instância
-      const falkordbUser =
-        instanceDetailsData.result_params?.falkordbUser || instanceDetailsData.result_params?.falkorDBUser;
+      let falkordbUser =
+        instanceDetailsData.result_params?.falkordbUser ||
+        instanceDetailsData.result_params?.falkorDBUser;
+
+      if (!falkordbUser) {
+        // Tentar obter de requestParams
+        falkordbUser =
+          instanceDetailsData.requestParams?.falkordbUser ||
+          instanceDetailsData.requestParams?.falkorDBUser;
+      }
 
       if (!falkordbUser) {
         throw new Error("Não foi possível obter 'falkordbUser' dos detalhes da instância.");

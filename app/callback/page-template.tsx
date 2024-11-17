@@ -2,7 +2,7 @@
 
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState, useTransition } from "react";
-import { exchangeCodeForAccessToken } from "~/app/callback/actions/exchange-code-for-access-token";
+import { exchangeCodeForAccessToken } from "~/app/actions/exchange-code-for-access-token";
 
 // The URL of this page should be added as Redirect URL in your integration settings on Vercel
 export default function Page() {

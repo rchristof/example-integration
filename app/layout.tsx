@@ -1,25 +1,16 @@
-import { Metadata } from "next";
+// app/layout.tsx
+
 import "./globals.css";
 
-export const metadata: Metadata = {
-  title: "Vercel Example Integration",
+export const metadata = {
+  title: "Seu Título de App",
+  description: "Sua Descrição de App",
 };
 
-export default function RootLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <body className="flex flex-col min-h-screen">
-        <div className="flex-1 flex items-center justify-center">
-          {children}
-        </div>
-        <footer className="mt-12 flex items-center justify-center w-full h-24 border-t">
-          {/* Removido o texto "Powered by Vercel" e o logotipo */}
-        </footer>
-      </body>
+    <html lang="pt-BR">
+      <body>{children}</body>
     </html>
   );
 }

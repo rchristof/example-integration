@@ -2,30 +2,68 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useAuth } from "../contexts/AuthContext";
+import { useFormik } from "formik";
+import * as Yup from "yup";
+import {
+  Box,
+  Stack,
+  Typography,
+  Link,
+} from "@mui/material";
+import FieldContainer from "./NonDashboardComponents/FormElementsV2/FieldContainer";
+import FieldLabel from "./NonDashboardComponents/FormElementsV2/FieldLabel";
+import SubmitButton from "./NonDashboardComponents/FormElementsV2/SubmitButton";
+import TextField from "./NonDashboardComponents/FormElementsV2/TextField";
+import PasswordField from "./NonDashboardComponents/FormElementsV2/PasswordField";
+import DisplayHeading from "./NonDashboardComponents/DisplayHeading";
 
 interface LoginComponentProps {
   onNext: () => void;
 }
 
 export default function LoginComponent({ onNext }: LoginComponentProps) {
-  const { accessToken, userInfo, setJwtToken } = useAuth();
-  const [email, setEmail] = useState(userInfo?.email || "");
-  const [password, setPassword] = useState("");
-  const [companyName, setCompanyName] = useState("");
-  const [name, setName] = useState("");
+  const { setJwtToken } = useAuth();
   const [isLogin, setIsLogin] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  
-  // Novo estado para gerenciar a confirmação de email
   const [needsEmailConfirmation, setNeedsEmailConfirmation] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-
-  // Armazenar as credenciais usadas no registro para reutilização no login
   const [registrationCredentials, setRegistrationCredentials] = useState<{ email: string; password: string } | null>(null);
 
-  const handleCreateAccount = async () => {
+  const validationSchema = useMemo(() => {
+    return Yup.object().shape({
+      email: Yup.string().email("Email inválido").required("Email é obrigatório"),
+      password: Yup.string().required("Senha é obrigatória"),
+      companyName: isLogin
+        ? Yup.string()
+        : Yup.string().required("Nome da empresa é obrigatório"),
+      name: isLogin
+        ? Yup.string()
+        : Yup.string().required("Seu nome é obrigatório"),
+    });
+  }, [isLogin]);
+
+  const formik = useFormik({
+    initialValues: {
+      email: "",
+      password: "",
+      companyName: "",
+      name: "",
+    },
+    validationSchema: validationSchema,
+    onSubmit: async (values) => {
+      if (isLogin) {
+        await handleLinkAccount(values);
+      } else {
+        await handleCreateAccount(values);
+      }
+    },
+  });
+
+  const { values, touched, errors, handleChange, handleBlur, handleSubmit, isValid } = formik;
+
+  const handleCreateAccount = async (values: any) => {
     try {
       setIsLoading(true);
       setErrorMessage(null);
@@ -42,26 +80,21 @@ export default function LoginComponent({ onNext }: LoginComponentProps) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          email,
-          legalCompanyName: companyName,
-          name,
-          password,
+          email: values.email,
+          legalCompanyName: values.companyName,
+          name: values.name,
+          password: values.password,
         }),
       });
 
-      // A API de registro não retorna nada, então evitamos chamar response.json()
       if (response.ok) {
-        // Registro bem-sucedido, mas email precisa ser confirmado
         setNeedsEmailConfirmation(true);
-        // Armazenar as credenciais para login posterior
-        setRegistrationCredentials({ email, password });
+        setRegistrationCredentials({ email: values.email, password: values.password });
       } else {
-        // Tenta extrair a mensagem de erro, se disponível
         let errorData;
         try {
           errorData = await response.json();
         } catch (e) {
-          // Resposta não é JSON
           throw new Error("Erro ao criar conta.");
         }
         setErrorMessage(errorData.message || "Erro ao criar conta.");
@@ -74,7 +107,7 @@ export default function LoginComponent({ onNext }: LoginComponentProps) {
     }
   };
 
-  const handleLinkAccount = async () => {
+  const handleLinkAccount = async (values: any) => {
     try {
       setIsLoading(true);
       setErrorMessage(null);
@@ -87,17 +120,16 @@ export default function LoginComponent({ onNext }: LoginComponentProps) {
       const response = await fetch("https://api.omnistrate.cloud/2022-09-01-00/customer-user-signin", {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${apikey}`, // Substitua pela chave de API
+          Authorization: `Bearer ${apikey}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          email,
-          password,
+          email: values.email,
+          password: values.password,
         }),
       });
 
-      // Tenta analisar a resposta como JSON, mas lida com respostas vazias
-      let data: { jwtToken?: string } = {};
+      let data: { jwtToken?: string; message?: string } = {};
       const text = await response.text();
       if (text) {
         try {
@@ -119,7 +151,6 @@ export default function LoginComponent({ onNext }: LoginComponentProps) {
           setErrorMessage("Falha ao obter token de autenticação.");
         }
       } else {
-        // Tenta obter a mensagem de erro da resposta
         const apiMessage = data.message || "Erro ao fazer login.";
         setErrorMessage(apiMessage);
       }
@@ -131,128 +162,158 @@ export default function LoginComponent({ onNext }: LoginComponentProps) {
     }
   };
 
-  // Função para tentar login após confirmação de email
   const handleConfirmEmailAndLogin = async () => {
-    // Garantir que as credenciais de registro estão disponíveis
     if (registrationCredentials) {
-      setEmail(registrationCredentials.email);
-      setPassword(registrationCredentials.password);
-      await handleLinkAccount();
+      await handleLinkAccount(registrationCredentials);
     } else {
       setErrorMessage("Credenciais de registro não encontradas. Por favor, faça login manualmente.");
     }
   };
 
+  const toggleIsLogin = () => {
+    setIsLogin(!isLogin);
+    setErrorMessage(null);
+    formik.resetForm();
+  };
+
   return (
-    <div>
-      <h2 className="text-2xl font-semibold text-center mb-6">
-        {isLogin ? "Faça login na sua conta" : "Crie sua conta"}
-      </h2>
-
-      {errorMessage && (
-        <div className="text-red-500 mb-4">
-          <p>{errorMessage}</p>
-        </div>
-      )}
-
-      {/* Condicional para exibir a mensagem de confirmação de email */}
+    <Box>
       {needsEmailConfirmation ? (
-        <div className="text-center">
-          <p className="mb-4">
-            Um email de confirmação foi enviado para <strong>{email}</strong>. Por favor, confirme seu email para continuar.
-          </p>
-          <button
-            className="bg-black text-white py-2 px-4 rounded"
+        <Box textAlign="center">
+          <Typography mb={2}>
+            Um email de confirmação foi enviado para <strong>{formik.values.email}</strong>. Por favor, confirme seu email para continuar.
+          </Typography>
+          <SubmitButton
             onClick={handleConfirmEmailAndLogin}
             disabled={isLoading}
+            loading={isLoading}
           >
-            {isLoading ? "Processando..." : "Já confirmei meu email"}
-          </button>
-          <p className="mt-4 text-sm">
+            Já confirmei meu email
+          </SubmitButton>
+          <Typography mt={2} variant="body2">
             Caso não tenha recebido o email, verifique sua caixa de spam ou{" "}
-            <a href="#" className="text-blue-500 underline">
+            <Link href="#" color="primary">
               solicite outro
-            </a>.
-          </p>
-        </div>
+            </Link>.
+          </Typography>
+        </Box>
       ) : (
-        <div className="space-y-4">
-          <div className="space-y-4">
-            <input
-              type="email"
-              placeholder="Email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="border p-3 rounded w-full"
-              disabled={isLoading && !isLogin}
-            />
-            {!isLogin && (
-              <>
-                <input
-                  type="text"
-                  placeholder="Digite o nome da sua empresa"
-                  value={companyName}
-                  onChange={(e) => setCompanyName(e.target.value)}
-                  className="border p-3 rounded w-full"
-                  disabled={isLoading}
+        <>
+          <DisplayHeading mt="24px">{isLogin ? "Login na sua conta" : "Crie sua conta"}</DisplayHeading>
+
+          {errorMessage && (
+            <Typography color="error" mb={2}>
+              {errorMessage}
+            </Typography>
+          )}
+
+          <Stack component="form" gap="32px" mt="44px" onSubmit={handleSubmit}>
+            <Stack gap="30px">
+              <FieldContainer>
+                <FieldLabel required>Email</FieldLabel>
+                <TextField
+                  name="email"
+                  id="email"
+                  placeholder="Digite seu email"
+                  value={values.email}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  error={touched.email && !!errors.email}
+                  helperText={touched.email && errors.email}
                 />
-                <input
-                  type="text"
-                  placeholder="Digite seu nome"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="border p-3 rounded w-full"
-                  disabled={isLoading}
-                />
-              </>
-            )}
-            <input
-              type="password"
-              placeholder={isLogin ? "Digite sua senha" : "Crie uma senha"}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="border p-3 rounded w-full"
-              disabled={isLoading && !isLogin}
-            />
-            {isLogin ? (
-              <button
-                className="bg-black text-white py-2 w-full rounded"
-                onClick={handleLinkAccount}
-                disabled={isLoading}
-              >
-                {isLoading ? "Processando..." : "Login"}
-              </button>
-            ) : (
-              <button
-                className="bg-black text-white py-2 w-full rounded"
-                onClick={handleCreateAccount}
-                disabled={isLoading}
-              >
-                {isLoading ? "Processando..." : "Inscrever-se"}
-              </button>
-            )}
-            <div className="flex justify-between items-center">
-              {isLogin && (
-                <a href="#" className="text-sm text-gray-500">
-                  Esqueceu a senha
-                </a>
+              </FieldContainer>
+
+              {!isLogin && (
+                <>
+                  <FieldContainer>
+                    <FieldLabel required>Nome da Empresa</FieldLabel>
+                    <TextField
+                      name="companyName"
+                      id="companyName"
+                      placeholder="Digite o nome da sua empresa"
+                      value={values.companyName}
+                      onChange={handleChange}
+                      onBlur={handleBlur}
+                      error={touched.companyName && !!errors.companyName}
+                      helperText={touched.companyName && errors.companyName}
+                    />
+                  </FieldContainer>
+
+                  <FieldContainer>
+                    <FieldLabel required>Seu Nome</FieldLabel>
+                    <TextField
+                      name="name"
+                      id="name"
+                      placeholder="Digite seu nome"
+                      value={values.name}
+                      onChange={handleChange}
+                      onBlur={handleBlur}
+                      error={touched.name && !!errors.name}
+                      helperText={touched.name && errors.name}
+                    />
+                  </FieldContainer>
+                </>
               )}
-              <p className="text-sm">
-                {isLogin ? "Novo por aqui?" : "Já tem uma conta?"}{" "}
-                <span
-                  className="text-blue-500 cursor-pointer"
-                  onClick={() => {
-                    setIsLogin(!isLogin);
-                    setErrorMessage(null); // Limpa mensagens de erro ao trocar de modo
+
+              <FieldContainer>
+                <FieldLabel required>{isLogin ? "Senha" : "Crie uma senha"}</FieldLabel>
+                <PasswordField
+                  name="password"
+                  id="password"
+                  placeholder={isLogin ? "Digite sua senha" : "Crie uma senha"}
+                  value={values.password}
+                  onChange={handleChange}
+                  onBlur={handleBlur}
+                  error={touched.password && !!errors.password}
+                  helperText={touched.password && errors.password}
+                />
+              </FieldContainer>
+
+              {isLogin && (
+                <Link
+                  href="#"
+                  style={{
+                    fontWeight: "500",
+                    fontSize: "14px",
+                    lineHeight: "22px",
+                    color: "#687588",
                   }}
                 >
-                  {isLogin ? "Crie uma conta" : "Login"}
-                </span>
-              </p>
-            </div>
-          </div>
-        </div>
+                  Esqueceu a senha?
+                </Link>
+              )}
+            </Stack>
+
+            <Stack gap="16px">
+              <SubmitButton
+                type="submit"
+                disabled={!isValid || isLoading}
+                loading={isLoading}
+              >
+                {isLogin ? "Login" : "Inscrever-se"}
+              </SubmitButton>
+            </Stack>
+          </Stack>
+
+          <Typography
+            mt="22px"
+            fontWeight="500"
+            fontSize="14px"
+            lineHeight="22px"
+            color="#A0AEC0"
+            textAlign="center"
+          >
+            {isLogin ? "Novo por aqui?" : "Já tem uma conta?"}{" "}
+            <Link
+              href="#"
+              onClick={toggleIsLogin}
+              style={{ color: "#27A376", cursor: "pointer" }}
+            >
+              {isLogin ? "Crie uma conta" : "Login"}
+            </Link>
+          </Typography>
+        </>
       )}
-    </div>
+    </Box>
   );
 }

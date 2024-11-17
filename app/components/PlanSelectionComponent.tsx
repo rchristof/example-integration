@@ -326,7 +326,7 @@ export default function PlanSelectionComponent({ onBack, selectedProject }: Plan
           { key: "FALKORDB_PASSWORD", value: instancePassword },
         ],
         selectedProject,
-        teamId
+        teamId ?? undefined
       );
 
       console.log("Dados da instância selecionada salvos com sucesso.");

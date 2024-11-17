@@ -5,25 +5,27 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { useRouter, useSearchParams } from "next/navigation";
-import { saveTokenToEnv } from "../actions/save-token-to-env";
-import InstanceCreationForm from "./InstanceCreationForm";
+import InstanceCreationForm from "./InstanceCreationForm"; // Importar o componente
 
 interface PlanSelectionComponentProps {
   onBack: () => void;
   selectedProject: string;
 }
 
-export default function PlanSelectionComponent({ onBack, selectedProject }: PlanSelectionComponentProps) {
+export default function PlanSelectionComponent({
+  onBack,
+  selectedProject,
+}: PlanSelectionComponentProps) {
   const { jwtToken, accessToken, teamId } = useAuth();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [hasBasicPlan, setHasBasicPlan] = useState<boolean>(false);
   const [basicSubscriptionId, setBasicSubscriptionId] = useState<string | null>(null);
-  const [showInstanceForm, setShowInstanceForm] = useState<boolean>(false);
   const [existingInstanceIds, setExistingInstanceIds] = useState<string[]>([]);
   const [selectedInstanceId, setSelectedInstanceId] = useState<string | null>(null);
   const [instancePassword, setInstancePassword] = useState<string>("");
+  const [showInstanceForm, setShowInstanceForm] = useState<boolean>(false);
 
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -38,11 +40,10 @@ export default function PlanSelectionComponent({ onBack, selectedProject }: Plan
         }
 
         // 1. Buscar assinaturas do usuário
-        const response = await fetch("https://api.omnistrate.cloud/2022-09-01-00/subscription", {
+        const response = await fetch("/api/subscriptions", {
           method: "GET",
           headers: {
             Authorization: `Bearer ${jwtToken}`,
-            "Content-Type": "application/json",
           },
         });
 
@@ -65,11 +66,10 @@ export default function PlanSelectionComponent({ onBack, selectedProject }: Plan
           if (data.ids.length > 0) {
             // Buscar detalhes de cada assinatura
             const subscriptionsPromises = data.ids.map(async (id: string) => {
-              const subResponse = await fetch(`https://api.omnistrate.cloud/2022-09-01-00/subscription/${id}`, {
+              const subResponse = await fetch(`/api/subscriptions?subscriptionId=${id}`, {
                 method: "GET",
                 headers: {
                   Authorization: `Bearer ${jwtToken}`,
-                  "Content-Type": "application/json",
                 },
               });
               if (!subResponse.ok) {
@@ -96,26 +96,16 @@ export default function PlanSelectionComponent({ onBack, selectedProject }: Plan
           const fetchInstances = async () => {
             try {
               const instancesResponse = await fetch(
-                `https://api.omnistrate.cloud/2022-09-01-00/resource-instance/sp-JvkxkPhinN/falkordb/v1/prod/falkordb-free-customer-hosted/falkordb-free-falkordb-customer-hosted-model-omnistrate-multi-tenancy/free?subscriptionId=${basicSubscription.id}`,
+                `/api/instances?subscriptionId=${basicSubscription.id}`,
                 {
                   method: "GET",
                   headers: {
                     Authorization: `Bearer ${jwtToken}`,
-                    "Content-Type": "application/json",
                   },
                 }
               );
 
-              // Verifique se o Content-Type é JSON antes de parsear
-              const contentType = instancesResponse.headers.get("Content-Type");
-              let instancesData;
-              if (contentType && contentType.includes("application/json")) {
-                instancesData = await instancesResponse.json();
-              } else {
-                // Se não for JSON, ler como texto para debug
-                const text = await instancesResponse.text();
-                throw new Error(`Resposta inesperada da API: ${text}`);
-              }
+              const instancesData = await instancesResponse.json();
 
               if (!instancesResponse.ok) {
                 throw new Error(instancesData.message || "Erro ao obter instâncias.");
@@ -123,7 +113,11 @@ export default function PlanSelectionComponent({ onBack, selectedProject }: Plan
 
               console.log("Instâncias Existentes:", instancesData);
 
-              if (instancesData.ids && Array.isArray(instancesData.ids) && instancesData.ids.length > 0) {
+              if (
+                instancesData.ids &&
+                Array.isArray(instancesData.ids) &&
+                instancesData.ids.length > 0
+              ) {
                 setExistingInstanceIds(instancesData.ids);
               } else {
                 setExistingInstanceIds([]);
@@ -149,15 +143,15 @@ export default function PlanSelectionComponent({ onBack, selectedProject }: Plan
 
   const handleSubscribe = async () => {
     try {
-      if (!jwtToken || !accessToken) {
-        throw new Error("Tokens de autenticação ausentes.");
+      if (!jwtToken) {
+        throw new Error("Token de autenticação ausente.");
       }
 
       setIsLoading(true);
       setErrorMessage(null);
 
       // 1. Criar uma nova assinatura
-      const subscriptionResponse = await fetch("https://api.omnistrate.cloud/2022-09-01-00/subscription", {
+      const response = await fetch("/api/subscriptions", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${jwtToken}`,
@@ -169,21 +163,16 @@ export default function PlanSelectionComponent({ onBack, selectedProject }: Plan
         }),
       });
 
-      const subscriptionDataRaw = await subscriptionResponse.text();
+      const subscriptionDataRaw = await response.text();
       console.log("Dados da Assinatura (raw):", subscriptionDataRaw);
 
-      if (!subscriptionResponse.ok) {
+      if (!response.ok) {
         console.error("Erro na resposta da API de assinatura:", subscriptionDataRaw);
         throw new Error(subscriptionDataRaw || "Falha na assinatura.");
       }
 
       // Remover quaisquer aspas extras do subscriptionId
-      let subscriptionId;
-      try {
-        subscriptionId = JSON.parse(subscriptionDataRaw);
-      } catch (e) {
-        subscriptionId = subscriptionDataRaw.replace(/^"|"$/g, "");
-      }
+      let subscriptionId = subscriptionDataRaw.replace(/^"|"$/g, "");
 
       if (!subscriptionId) {
         throw new Error("subscriptionId não encontrado na resposta da API.");
@@ -197,26 +186,16 @@ export default function PlanSelectionComponent({ onBack, selectedProject }: Plan
       const fetchInstances = async () => {
         try {
           const instancesResponse = await fetch(
-            `https://api.omnistrate.cloud/2022-09-01-00/resource-instance/sp-JvkxkPhinN/falkordb/v1/prod/falkordb-free-customer-hosted/falkordb-free-falkordb-customer-hosted-model-omnistrate-multi-tenancy/free?subscriptionId=${subscriptionId}`,
+            `/api/instances?subscriptionId=${subscriptionId}`,
             {
               method: "GET",
               headers: {
                 Authorization: `Bearer ${jwtToken}`,
-                "Content-Type": "application/json",
               },
             }
           );
 
-          // Verifique se o Content-Type é JSON antes de parsear
-          const contentType = instancesResponse.headers.get("Content-Type");
-          let instancesData;
-          if (contentType && contentType.includes("application/json")) {
-            instancesData = await instancesResponse.json();
-          } else {
-            // Se não for JSON, ler como texto para debug
-            const text = await instancesResponse.text();
-            throw new Error(`Resposta inesperada da API: ${text}`);
-          }
+          const instancesData = await instancesResponse.json();
 
           if (!instancesResponse.ok) {
             throw new Error(instancesData.message || "Erro ao obter instâncias.");
@@ -224,7 +203,11 @@ export default function PlanSelectionComponent({ onBack, selectedProject }: Plan
 
           console.log("Instâncias Existentes:", instancesData);
 
-          if (instancesData.ids && Array.isArray(instancesData.ids) && instancesData.ids.length > 0) {
+          if (
+            instancesData.ids &&
+            Array.isArray(instancesData.ids) &&
+            instancesData.ids.length > 0
+          ) {
             setExistingInstanceIds(instancesData.ids);
           } else {
             setExistingInstanceIds([]);
@@ -265,27 +248,18 @@ export default function PlanSelectionComponent({ onBack, selectedProject }: Plan
       setIsLoading(true);
       setErrorMessage(null);
 
-      // Construir a URL para obter os detalhes da instância selecionada
-      const instanceDetailsUrl = `https://api.omnistrate.cloud/2022-09-01-00/resource-instance/sp-JvkxkPhinN/falkordb/v1/prod/falkordb-free-customer-hosted/falkordb-free-falkordb-customer-hosted-model-omnistrate-multi-tenancy/free/${selectedInstanceId}?subscriptionId=${basicSubscriptionId}`;
-
       // Fazer a chamada à API para obter os detalhes da instância
-      const instanceDetailsResponse = await fetch(instanceDetailsUrl, {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${jwtToken}`,
-          "Content-Type": "application/json",
-        },
-      });
+      const instanceDetailsResponse = await fetch(
+        `/api/instances?subscriptionId=${basicSubscriptionId}&instanceId=${selectedInstanceId}`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${jwtToken}`,
+          },
+        }
+      );
 
-      // Verificar o Content-Type e processar a resposta
-      const contentType = instanceDetailsResponse.headers.get("Content-Type");
-      let instanceDetailsData;
-      if (contentType && contentType.includes("application/json")) {
-        instanceDetailsData = await instanceDetailsResponse.json();
-      } else {
-        const text = await instanceDetailsResponse.text();
-        throw new Error(`Resposta inesperada da API: ${text}`);
-      }
+      const instanceDetailsData = await instanceDetailsResponse.json();
 
       if (!instanceDetailsResponse.ok) {
         throw new Error(instanceDetailsData.message || "Erro ao obter detalhes da instância.");
@@ -319,15 +293,27 @@ export default function PlanSelectionComponent({ onBack, selectedProject }: Plan
         throw new Error("Token de acesso do Vercel ausente.");
       }
 
-      await saveTokenToEnv(
-        accessToken,
-        [
-          { key: "FALKORDB_USER", value: falkordbUser },
-          { key: "FALKORDB_PASSWORD", value: instancePassword },
-        ],
-        selectedProject,
-        teamId ?? undefined
-      );
+      const saveResponse = await fetch("/api/save-token-to-env", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          accessToken,
+          variables: [
+            { key: "FALKORDB_USER", value: falkordbUser },
+            { key: "FALKORDB_PASSWORD", value: instancePassword },
+          ],
+          projectId: selectedProject,
+          teamId,
+        }),
+      });
+
+      const saveData = await saveResponse.json();
+
+      if (!saveResponse.ok) {
+        throw new Error(saveData.message || "Erro ao salvar as variáveis de ambiente.");
+      }
 
       console.log("Dados da instância selecionada salvos com sucesso.");
 
@@ -347,52 +333,6 @@ export default function PlanSelectionComponent({ onBack, selectedProject }: Plan
     }
   };
 
-  const handleCreateNewInstance = () => {
-    setShowInstanceForm(true);
-  };
-
-  const handleSuccess = async (instanceUser: string, instancePassword: string) => {
-    try {
-      setSuccessMessage("Instância implantada com sucesso!");
-      setShowInstanceForm(false);
-      setSelectedInstanceId(null);
-
-      // Salvar as credenciais nas variáveis de ambiente
-      if (!accessToken) {
-        throw new Error("Token de acesso do Vercel ausente.");
-      }
-
-      await saveTokenToEnv(
-        accessToken,
-        [
-          { key: "FALKORDB_USER", value: instanceUser },
-          { key: "FALKORDB_PASSWORD", value: instancePassword },
-        ],
-        selectedProject,
-        teamId
-      );
-
-      console.log("Dados da instância criada salvos com sucesso.");
-
-      // Redirecionar o usuário se a URL 'next' estiver disponível
-      if (next) {
-        router.push(next);
-      } else {
-        console.error("URL Next não fornecida");
-      }
-    } catch (error: any) {
-      console.error("Erro ao salvar as variáveis de ambiente:", error);
-      setErrorMessage(error.message || "Erro ao salvar as variáveis de ambiente.");
-    }
-  };
-
-  const handleCancel = () => {
-    // Resetar estados
-    setShowInstanceForm(false);
-    setSelectedInstanceId(null);
-    setInstancePassword("");
-  };
-
   const handleCancelSubscription = async () => {
     try {
       if (!jwtToken || !basicSubscriptionId) {
@@ -403,12 +343,11 @@ export default function PlanSelectionComponent({ onBack, selectedProject }: Plan
       setErrorMessage(null);
 
       const response = await fetch(
-        `https://api.omnistrate.cloud/2022-09-01-00/subscription/${basicSubscriptionId}`,
+        `/api/subscriptions?subscriptionId=${basicSubscriptionId}`,
         {
           method: "DELETE",
           headers: {
             Authorization: `Bearer ${jwtToken}`,
-            "Content-Type": "application/json",
           },
         }
       );
@@ -432,6 +371,64 @@ export default function PlanSelectionComponent({ onBack, selectedProject }: Plan
     }
   };
 
+  const handleCreateNewInstance = () => {
+    setShowInstanceForm(true);
+  };
+
+  const handleCancel = () => {
+    // Resetar estados
+    setShowInstanceForm(false);
+    setSelectedInstanceId(null);
+    setInstancePassword("");
+  };
+
+  const handleSuccess = async (instanceUser: string, instancePassword: string) => {
+    try {
+      setSuccessMessage("Instância implantada com sucesso!");
+      setShowInstanceForm(false);
+      setSelectedInstanceId(null);
+
+      // Salvar as credenciais nas variáveis de ambiente
+      if (!accessToken) {
+        throw new Error("Token de acesso do Vercel ausente.");
+      }
+
+      const saveResponse = await fetch("/api/save-token-to-env", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          accessToken,
+          variables: [
+            { key: "FALKORDB_USER", value: instanceUser },
+            { key: "FALKORDB_PASSWORD", value: instancePassword },
+          ],
+          projectId: selectedProject,
+          teamId,
+        }),
+      });
+
+      const saveData = await saveResponse.json();
+
+      if (!saveResponse.ok) {
+        throw new Error(saveData.message || "Erro ao salvar as variáveis de ambiente.");
+      }
+
+      console.log("Dados da instância criada salvos com sucesso.");
+
+      // Redirecionar o usuário se a URL 'next' estiver disponível
+      if (next) {
+        router.push(next);
+      } else {
+        console.error("URL Next não fornecida");
+      }
+    } catch (error: any) {
+      console.error("Erro ao salvar as variáveis de ambiente:", error);
+      setErrorMessage(error.message || "Erro ao salvar as variáveis de ambiente.");
+    }
+  };
+
   return (
     <div>
       <h2 className="text-2xl font-semibold text-center mb-6">Planos</h2>
@@ -444,19 +441,13 @@ export default function PlanSelectionComponent({ onBack, selectedProject }: Plan
 
           {showInstanceForm ? (
             // Exibir o formulário de criação de instância
-            basicSubscriptionId && accessToken && jwtToken ? (
-              <InstanceCreationForm
-                subscriptionId={basicSubscriptionId}
-                accessToken={accessToken}
-                selectedProject={selectedProject}
-                teamId={teamId}
-                jwtToken={jwtToken}
-                onSuccess={handleSuccess}
-                onCancel={handleCancel}
-              />
-            ) : (
-              <p>Informações de autenticação ausentes.</p>
-            )
+            <InstanceCreationForm
+              subscriptionId={basicSubscriptionId!}
+              selectedProject={selectedProject}
+              teamId={teamId}
+              onSuccess={handleSuccess}
+              onCancel={handleCancel}
+            />
           ) : hasBasicPlan ? (
             existingInstanceIds.length > 0 ? (
               // Se há instâncias existentes, listar e permitir seleção

@@ -3,26 +3,24 @@
 "use client";
 
 import { useState } from "react";
+import { useAuth } from "../contexts/AuthContext";
 
 interface InstanceCreationFormProps {
   subscriptionId: string;
-  accessToken: string;
   selectedProject: string;
   teamId?: string;
-  jwtToken: string;
   onSuccess: (instanceUser: string, instancePassword: string) => void;
   onCancel: () => void;
 }
 
 export default function InstanceCreationForm({
   subscriptionId,
-  accessToken,
   selectedProject,
   teamId,
-  jwtToken,
   onSuccess,
   onCancel,
 }: InstanceCreationFormProps) {
+  const { jwtToken } = useAuth();
   const [instanceName, setInstanceName] = useState<string>("");
   const [instanceUser, setInstanceUser] = useState<string>("");
   const [instancePassword, setInstancePassword] = useState<string>("");
@@ -70,6 +68,10 @@ export default function InstanceCreationForm({
         return;
       }
 
+      if (!jwtToken) {
+        throw new Error("Token de autenticação ausente.");
+      }
+
       setIsLoading(true);
       setErrorMessage(null);
 
@@ -84,17 +86,17 @@ export default function InstanceCreationForm({
         },
       };
 
-      // Construir a URL correta para criar a instância, incluindo subscriptionId como query parameter
-      const createInstanceUrl = `https://api.omnistrate.cloud/2022-09-01-00/resource-instance/sp-JvkxkPhinN/falkordb/v1/prod/falkordb-free-customer-hosted/falkordb-free-falkordb-customer-hosted-model-omnistrate-multi-tenancy/free?subscriptionId=${subscriptionId}`;
-
-      // Fazer a chamada para criar a instância
-      const response = await fetch(createInstanceUrl, {
+      // Fazer a chamada para a rota de API interna
+      const response = await fetch("/api/create-instance", {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${jwtToken}`,
           "Content-Type": "application/json",
+          Authorization: `Bearer ${jwtToken}`,
         },
-        body: JSON.stringify(instanceData),
+        body: JSON.stringify({
+          subscriptionId,
+          instanceData,
+        }),
       });
 
       const data = await response.json();

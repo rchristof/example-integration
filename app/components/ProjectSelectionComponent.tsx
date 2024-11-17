@@ -11,7 +11,11 @@ interface ProjectSelectionComponentProps {
   setSelectedProject: (projectId: string) => void;
 }
 
-export default function ProjectSelectionComponent({ onNext, onBack, setSelectedProject }: ProjectSelectionComponentProps) {
+export default function ProjectSelectionComponent({
+  onNext,
+  onBack,
+  setSelectedProject,
+}: ProjectSelectionComponentProps) {
   const { accessToken } = useAuth();
   const [projects, setProjects] = useState<any[]>([]);
   const [selectedProjectId, setSelectedProjectId] = useState<string>("");
@@ -19,21 +23,30 @@ export default function ProjectSelectionComponent({ onNext, onBack, setSelectedP
   useEffect(() => {
     const fetchProjects = async () => {
       try {
-        const response = await fetch("https://api.vercel.com/v9/projects", {
+        if (!accessToken) {
+          throw new Error("Token de acesso ausente.");
+        }
+
+        const response = await fetch("/api/projects", {
           headers: {
             Authorization: `Bearer ${accessToken}`,
-            "Content-Type": "application/json",
           },
         });
+
         const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.message || "Erro ao buscar projetos.");
+        }
+
         setProjects(data.projects || []);
-      } catch (error) {
+      } catch (error: any) {
         console.error("Erro ao buscar projetos:", error);
+        // Você pode definir uma mensagem de erro no estado, se desejar
       }
     };
-    if (accessToken) {
-      fetchProjects();
-    }
+
+    fetchProjects();
   }, [accessToken]);
 
   const handleNext = () => {
@@ -64,7 +77,11 @@ export default function ProjectSelectionComponent({ onNext, onBack, setSelectedP
           ))}
         </select>
       </div>
-      <button className="bg-black text-white py-2 w-full rounded mt-4" onClick={handleNext} disabled={!selectedProjectId}>
+      <button
+        className="bg-black text-white py-2 w-full rounded mt-4"
+        onClick={handleNext}
+        disabled={!selectedProjectId}
+      >
         Salvar e Continuar
       </button>
       <button className="text-gray-500 mt-2" onClick={onBack}>

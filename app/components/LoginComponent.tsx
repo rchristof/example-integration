@@ -68,15 +68,9 @@ export default function LoginComponent({ onNext }: LoginComponentProps) {
       setIsLoading(true);
       setErrorMessage(null);
 
-      const apikey = process.env.NEXT_PUBLIC_ADMIN_BEARER;
-      if (!apikey) {
-        throw new Error("Chave de API ausente.");
-      }
-
-      const response = await fetch("https://api.omnistrate.cloud/2022-09-01-00/customer-user-signup", {
+      const response = await fetch("/api/create-account", {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${apikey}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
@@ -87,17 +81,13 @@ export default function LoginComponent({ onNext }: LoginComponentProps) {
         }),
       });
 
+      const data = await response.json();
+
       if (response.ok) {
         setNeedsEmailConfirmation(true);
         setRegistrationCredentials({ email: values.email, password: values.password });
       } else {
-        let errorData;
-        try {
-          errorData = await response.json();
-        } catch (e) {
-          throw new Error("Erro ao criar conta.");
-        }
-        setErrorMessage(errorData.message || "Erro ao criar conta.");
+        setErrorMessage(data.message || "Erro ao criar conta.");
       }
     } catch (error: any) {
       console.error("Erro ao criar conta:", error);
@@ -112,15 +102,9 @@ export default function LoginComponent({ onNext }: LoginComponentProps) {
       setIsLoading(true);
       setErrorMessage(null);
 
-      const apikey = process.env.NEXT_PUBLIC_ADMIN_BEARER;
-      if (!apikey) {
-        throw new Error("Chave de API ausente.");
-      }
-
-      const response = await fetch("https://api.omnistrate.cloud/2022-09-01-00/customer-user-signin", {
+      const response = await fetch("/api/login", {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${apikey}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
@@ -129,16 +113,7 @@ export default function LoginComponent({ onNext }: LoginComponentProps) {
         }),
       });
 
-      let data: { jwtToken?: string; message?: string } = {};
-      const text = await response.text();
-      if (text) {
-        try {
-          data = JSON.parse(text);
-        } catch (jsonError) {
-          console.error("Erro ao analisar JSON:", jsonError);
-          throw new Error("Resposta da API inválida.");
-        }
-      }
+      const data = await response.json();
 
       if (response.ok) {
         const jwtToken = data.jwtToken;

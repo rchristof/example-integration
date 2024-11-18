@@ -1,89 +1,68 @@
-// app/api/subscriptions/route.ts
-
-import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
+import { NextResponse } from "next/server";
+import redis from "@/utils/redis";
 
 export const GET = async (request: Request) => {
   try {
-    const jwtToken = cookies().get('jwtToken')?.value;
-
-    if (!jwtToken) {
-      return NextResponse.json({ message: 'Token de autenticação ausente.' }, { status: 401 });
+    // Recuperar o token de sessão do cookie
+    const sessionToken = request.headers.get("cookie")?.split("=")?.[1];
+    if (!sessionToken) {
+      return NextResponse.json({ message: "Sessão ausente." }, { status: 401 });
     }
 
-    const response = await fetch('https://api.omnistrate.cloud/2022-09-01-00/subscription', {
-      method: 'GET',
+    const sessionData = await redis.get(sessionToken);
+    if (!sessionData) {
+      return NextResponse.json({ message: "Sessão inválida ou expirada." }, { status: 401 });
+    }
+
+    const { jwtToken } = JSON.parse(sessionData);
+
+    const response = await fetch("https://api.omnistrate.cloud/2022-09-01-00/subscription", {
+      method: "GET",
       headers: {
         Authorization: `Bearer ${jwtToken}`,
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
     });
 
     const data = await response.json();
+    if (!response.ok) {
+      return NextResponse.json(data, { status: response.status });
+    }
 
-    return NextResponse.json(data, { status: response.status });
+    return NextResponse.json(data, { status: 200 });
   } catch (error) {
-    console.error('Erro na rota /api/subscriptions:', error);
-    return NextResponse.json({ message: 'Erro interno do servidor.' }, { status: 500 });
+    return NextResponse.json({ message: "Erro interno do servidor." }, { status: 500 });
   }
 };
 
 export const POST = async (request: Request) => {
   try {
-    const jwtToken = cookies().get('jwtToken')?.value;
-
-    if (!jwtToken) {
-      return NextResponse.json({ message: 'Token de autenticação ausente.' }, { status: 401 });
+    // Recuperar o token de sessão do cookie
+    const sessionToken = request.headers.get("cookie")?.split("=")?.[1];
+    if (!sessionToken) {
+      return NextResponse.json({ message: "Sessão ausente." }, { status: 401 });
     }
 
+    const sessionData = await redis.get(sessionToken);
+    if (!sessionData) {
+      return NextResponse.json({ message: "Sessão inválida ou expirada." }, { status: 401 });
+    }
+
+    const { jwtToken } = JSON.parse(sessionData);
     const body = await request.json();
 
-    const response = await fetch('https://api.omnistrate.cloud/2022-09-01-00/subscription', {
-      method: 'POST',
+    const response = await fetch("https://api.omnistrate.cloud/2022-09-01-00/subscription", {
+      method: "POST",
       headers: {
         Authorization: `Bearer ${jwtToken}`,
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       body: JSON.stringify(body),
     });
 
     const data = await response.text();
-
     return new Response(data, { status: response.status });
   } catch (error) {
-    console.error('Erro na rota /api/subscriptions:', error);
-    return NextResponse.json({ message: 'Erro interno do servidor.' }, { status: 500 });
+    return NextResponse.json({ message: "Erro interno do servidor." }, { status: 500 });
   }
 };
-
-// export const DELETE = async (request: Request) => {
-//   try {
-//     const jwtToken = cookies().get('jwtToken')?.value;
-
-//     if (!jwtToken) {
-//       return NextResponse.json({ message: 'Token de autenticação ausente.' }, { status: 401 });
-//     }
-
-//     const { searchParams } = new URL(request.url);
-//     const subscriptionId = searchParams.get('subscriptionId');
-
-//     if (!subscriptionId) {
-//       return NextResponse.json({ message: 'ID da assinatura ausente.' }, { status: 400 });
-//     }
-
-//     const response = await fetch(`https://api.omnistrate.cloud/2022-09-01-00/subscription/${subscriptionId}`, {
-//       method: 'DELETE',
-//       headers: {
-//         Authorization: `Bearer ${jwtToken}`,
-//         'Content-Type': 'application/json',
-//       },
-//     });
-
-//     const data = await response.text();
-
-//     return new Response(data, { status: response.status });
-//   } catch (error) {
-//     console.error('Erro na rota /api/subscriptions:', error);
-//     return NextResponse.json({ message: 'Erro interno do servidor.' }, { status: 500 });
-//   }
-// };

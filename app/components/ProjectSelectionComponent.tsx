@@ -2,47 +2,46 @@
 
 import { useState, useEffect } from "react";
 import { useAuth } from "../contexts/AuthContext";
-import { useRouter } from "next/navigation";
 
 interface ProjectSelectionComponentProps {
   onNext: () => void;
 }
 
-export default function ProjectSelectionComponent({ onNext }: ProjectSelectionComponentProps) {
-  const { setSelectedProject } = useAuth(); // Função para salvar o projeto no contexto
+export default function ProjectSelectionComponent({
+  onNext,
+}: ProjectSelectionComponentProps) {
+  const { setSelectedProject } = useAuth();
   const [projects, setProjects] = useState<any[]>([]);
-  const [selectedProject, setSelectedProjectState] = useState<string>(""); // Estado local para o projeto selecionado
+  const [selectedProject, setSelectedProjectState] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const router = useRouter();
+
+  const getSessionToken = () =>
+    document.cookie.replace(
+      /(?:(?:^|.*;\s*)sessionToken\s*\=\s*([^;]*).*$)|^.*$/,
+      "$1"
+    );
 
   useEffect(() => {
     const fetchProjects = async () => {
       try {
         setIsLoading(true);
-
-        // Chamada à API para buscar projetos
         const response = await fetch("/api/projects", {
           method: "GET",
-          credentials: "include", // Inclui cookies na requisição
+          headers: {
+            "x-session-token": getSessionToken(),
+          },
         });
-
-        if (response.status === 401) {
-          // Usuário não autenticado
-          console.warn("Usuário não autenticado.");
-          setErrorMessage("Por favor, faça login novamente.");
-          return;
-        }
 
         const data = await response.json();
 
-        if (response.ok) {
-          setProjects(data.projects || []);
-        } else {
+        if (!response.ok) {
           setErrorMessage(data.message || "Erro ao obter projetos.");
+          return;
         }
-      } catch (error: any) {
-        console.error("Erro ao obter projetos:", error);
+
+        setProjects(data.projects || []);
+      } catch (error) {
         setErrorMessage("Erro ao obter projetos. Tente novamente.");
       } finally {
         setIsLoading(false);
@@ -54,8 +53,8 @@ export default function ProjectSelectionComponent({ onNext }: ProjectSelectionCo
 
   const handleNext = () => {
     if (selectedProject) {
-      setSelectedProject(selectedProject); // Salva o projeto selecionado no contexto
-      onNext(); // Avança para o próximo passo
+      setSelectedProject(selectedProject);
+      onNext();
     } else {
       setErrorMessage("Por favor, selecione um projeto.");
     }
@@ -63,7 +62,9 @@ export default function ProjectSelectionComponent({ onNext }: ProjectSelectionCo
 
   return (
     <div>
-      <h2 className="text-2xl font-semibold text-center mb-6">Seleção de Projeto</h2>
+      <h2 className="text-2xl font-semibold text-center mb-6">
+        Seleção de Projeto
+      </h2>
       {errorMessage && <p className="text-red-500 mb-4">{errorMessage}</p>}
       {isLoading ? (
         <p>Carregando projetos...</p>
@@ -77,7 +78,7 @@ export default function ProjectSelectionComponent({ onNext }: ProjectSelectionCo
                 name="project"
                 value={project.id}
                 checked={selectedProject === project.id}
-                onChange={(e) => setSelectedProjectState(e.target.value)} // Atualiza o estado local
+                onChange={(e) => setSelectedProjectState(e.target.value)}
                 className="mr-2"
               />
               <label htmlFor={project.id} className="cursor-pointer">

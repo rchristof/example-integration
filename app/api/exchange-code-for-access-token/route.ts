@@ -1,7 +1,6 @@
-// app/api/exchange-code-for-access-token/route.ts
-
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
+import redis from "@/utils/redis";
+import { generateSessionToken } from "@/utils/session";
 import qs from "querystring";
 
 export const POST = async (request: Request) => {
@@ -17,14 +16,9 @@ export const POST = async (request: Request) => {
     const host = process.env.HOST;
 
     if (!clientId || !clientSecret || !host) {
-      console.error("Variáveis de ambiente ausentes.");
-      return NextResponse.json(
-        { message: "Variáveis de ambiente ausentes." },
-        { status: 500 }
-      );
+      return NextResponse.json({ message: "Variáveis de ambiente ausentes." }, { status: 500 });
     }
 
-    // Troca do código pelo token de acesso
     const response = await fetch("https://api.vercel.com/v2/oauth/access_token", {
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
@@ -34,18 +28,13 @@ export const POST = async (request: Request) => {
         client_id: clientId,
         client_secret: clientSecret,
         code,
-        redirect_uri: `${host}/callback`, // Deve coincidir com o URI de redirecionamento configurado na Vercel
+        redirect_uri: `${host}/callback`,
       }),
     });
 
     const body = await response.json();
 
-    if (process.env.NODE_ENV !== "production") {
-      console.log("API Vercel response:", JSON.stringify(body, null, 2));
-    }
-
-    if (!response.ok || !body.access_token) {
-      console.error("Erro na troca de código por token:", body);
+    if (!response.ok || !body.access_token || !body.team_id) {
       return NextResponse.json(
         { message: body.error_description || "Erro ao trocar código por token." },
         { status: response.status }
@@ -54,21 +43,27 @@ export const POST = async (request: Request) => {
 
     const { access_token: accessToken, team_id: teamId } = body;
 
-    // Armazenar o token de acesso em um cookie seguro
-    cookies().set("accessToken", accessToken, {
+    // Gerar token de sessão e salvar informações no Redis
+    const sessionToken = generateSessionToken();
+    const ttl = 60 * 60 * 24; // 1 dia
+    await redis.set(
+      sessionToken,
+      JSON.stringify({ accessToken, teamId }),
+      "EX",
+      ttl
+    );
+
+    // Salvar o token de sessão no cookie
+    const responseWithCookie = NextResponse.json({ success: true, teamId });
+    responseWithCookie.cookies.set("sessionToken", sessionToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      path: "/",
+      secure: true,
+      maxAge: ttl,
       sameSite: "strict",
-      maxAge: 60 * 60 * 24, // 1 dia
     });
 
-    return NextResponse.json({ success: true, teamId });
+    return responseWithCookie;
   } catch (error) {
-    console.error("Erro ao trocar código por token:", error);
-    return NextResponse.json(
-      { message: "Erro interno do servidor." },
-      { status: 500 }
-    );
+    return NextResponse.json({ message: "Erro interno do servidor." }, { status: 500 });
   }
 };

@@ -5,8 +5,6 @@ import { createContext, useContext, useState, ReactNode } from "react";
 interface AuthContextProps {
   isAuthenticated: boolean;
   setIsAuthenticated: (value: boolean) => void;
-  teamId: string | null;
-  setTeamId: (value: string | null) => void;
   selectedProject: string | null;
   setSelectedProject: (value: string | null) => void;
   subscriptionId: string | null;
@@ -17,7 +15,6 @@ const AuthContext = createContext<AuthContextProps | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [teamId, setTeamId] = useState<string | null>(null);
   const [selectedProject, setSelectedProject] = useState<string | null>(null);
   const [subscriptionId, setSubscriptionId] = useState<string | null>(null);
 
@@ -26,8 +23,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       value={{
         isAuthenticated,
         setIsAuthenticated,
-        teamId,
-        setTeamId,
         selectedProject,
         setSelectedProject,
         subscriptionId,

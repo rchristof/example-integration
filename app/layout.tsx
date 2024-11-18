@@ -4,7 +4,7 @@ import "./globals.css";
 import { AuthProvider } from "./contexts/AuthContext";
 
 export const metadata = {
-  title: "Seu Título de App",
+  title: "FalkorDB",
   description: "Sua Descrição de App",
 };
 

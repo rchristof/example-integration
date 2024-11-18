@@ -1,16 +1,10 @@
-// app/components/LoginComponent.tsx
 "use client";
 
 import { useState } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { useFormik } from "formik";
 import * as Yup from "yup";
-import {
-  Box,
-  Stack,
-  Typography,
-  Link,
-} from "@mui/material";
+import { Box, Stack, Typography, Link } from "@mui/material";
 import FieldContainer from "@components/NonDashboardComponents/FormElementsV2/FieldContainer";
 import FieldLabel from "@components/NonDashboardComponents/FormElementsV2/FieldLabel";
 import SubmitButton from "@components/NonDashboardComponents/FormElementsV2/SubmitButton";
@@ -81,7 +75,6 @@ export default function LoginComponent({ onNext }: LoginComponentProps) {
       const data = await response.json();
 
       if (response.ok) {
-        // Redireciona para login com uma notificação
         setIsLogin(true);
         setNotification(
           "Cadastro realizado com sucesso! Verifique seu email para confirmar sua conta."
@@ -143,7 +136,7 @@ export default function LoginComponent({ onNext }: LoginComponentProps) {
           {notification}
         </Typography>
       )}
-      <DisplayHeading mt="24px">{isLogin ? "Login na sua conta" : "Crie sua conta"}</DisplayHeading>
+      <DisplayHeading mt="12px">{isLogin ? "Login na sua conta" : "Crie sua conta"}</DisplayHeading>
 
       {errorMessage && (
         <Typography color="error" mb={2}>
@@ -151,13 +144,12 @@ export default function LoginComponent({ onNext }: LoginComponentProps) {
         </Typography>
       )}
 
-      <Stack component="form" gap="32px" mt="44px" onSubmit={handleSubmit}>
-        <Stack gap="30px">
+      <Stack component="form" gap="24px" mt="28px" onSubmit={handleSubmit}>
+        <Stack gap="20px">
           <FieldContainer>
-            <FieldLabel required>Email</FieldLabel>
+            <FieldLabel required align="left">Email</FieldLabel>
             <TextField
               name="email"
-              id="email"
               placeholder="Digite seu email"
               value={values.email}
               onChange={handleChange}
@@ -170,10 +162,9 @@ export default function LoginComponent({ onNext }: LoginComponentProps) {
           {!isLogin && (
             <>
               <FieldContainer>
-                <FieldLabel required>Nome da Empresa</FieldLabel>
+                <FieldLabel required align="left">Nome da Empresa</FieldLabel>
                 <TextField
                   name="companyName"
-                  id="companyName"
                   placeholder="Digite o nome da sua empresa"
                   value={values.companyName}
                   onChange={handleChange}
@@ -184,10 +175,9 @@ export default function LoginComponent({ onNext }: LoginComponentProps) {
               </FieldContainer>
 
               <FieldContainer>
-                <FieldLabel required>Seu Nome</FieldLabel>
+                <FieldLabel required align="left">Seu Nome</FieldLabel>
                 <TextField
                   name="name"
-                  id="name"
                   placeholder="Digite seu nome"
                   value={values.name}
                   onChange={handleChange}
@@ -200,11 +190,10 @@ export default function LoginComponent({ onNext }: LoginComponentProps) {
           )}
 
           <FieldContainer>
-            <FieldLabel required>{isLogin ? "Senha" : "Crie uma senha"}</FieldLabel>
+            <FieldLabel required align="left">Senha</FieldLabel>
             <PasswordField
               name="password"
-              id="password"
-              placeholder={isLogin ? "Digite sua senha" : "Crie uma senha"}
+              placeholder="Digite sua senha"
               value={values.password}
               onChange={handleChange}
               onBlur={handleBlur}
@@ -212,36 +201,31 @@ export default function LoginComponent({ onNext }: LoginComponentProps) {
               helperText={touched.password && errors.password}
             />
           </FieldContainer>
+
+          {isLogin && (
+            <Box textAlign="left">
+              <Link href="/forgot-password" style={{ color: "#27A376", cursor: "pointer" }}>
+                Esqueceu sua senha?
+              </Link>
+            </Box>
+          )}
         </Stack>
 
-        <Stack gap="16px">
-          <SubmitButton
-            type="submit"
-            disabled={!isValid || isLoading}
-            loading={isLoading}
-          >
-            {isLogin ? "Login" : "Cadastrar"}
-          </SubmitButton>
-        </Stack>
-      </Stack>
-
-      <Typography
-        mt="22px"
-        fontWeight="500"
-        fontSize="14px"
-        lineHeight="22px"
-        color="#A0AEC0"
-        textAlign="center"
-      >
-        {isLogin ? "Novo por aqui?" : "Já tem uma conta?"}{" "}
-        <Link
-          href="#"
-          onClick={toggleIsLogin}
-          style={{ color: "#27A376", cursor: "pointer" }}
+        <SubmitButton
+          type="submit"
+          disabled={!isValid || isLoading}
+          loading={isLoading}
         >
-          {isLogin ? "Crie uma conta" : "Login"}
-        </Link>
-      </Typography>
+          {isLogin ? "Login" : "Cadastrar"}
+        </SubmitButton>
+
+        <Typography mt="16px" fontSize="14px" textAlign="center" color="#A0AEC0">
+          {isLogin ? "Novo por aqui?" : "Já tem uma conta?"}{" "}
+          <Link href="#" onClick={toggleIsLogin} style={{ color: "#27A376", cursor: "pointer" }}>
+            {isLogin ? "Crie uma conta" : "Login"}
+          </Link>
+        </Typography>
+      </Stack>
     </Box>
   );
 }

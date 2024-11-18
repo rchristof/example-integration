@@ -16,6 +16,7 @@ const FieldLabel = ({ required, children }: FieldLabelProps) => {
         fontSize: "14px",
         lineHeight: "20px",
         color: "#111827",
+        textAlign: "left"
       }}
     >
       {children}{" "}

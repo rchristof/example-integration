@@ -1,55 +1,48 @@
-// app/contexts/AuthContext.tsx
-
 "use client";
 
-import React, { createContext, useState, useContext } from "react";
+import { createContext, useContext, useState, ReactNode } from "react";
 
-interface AuthContextType {
-  accessToken: string | null;
+interface AuthContextProps {
+  isAuthenticated: boolean;
+  setIsAuthenticated: (value: boolean) => void;
   teamId: string | null;
-  code: string | null;
-  jwtToken: string | null;
-  userInfo: any;
-  setAccessToken: (token: string | null) => void;
-  setTeamId: (id: string | null) => void;
-  setCode: (code: string | null) => void;
-  setJwtToken: (token: string | null) => void;
-  setUserInfo: (info: any) => void;
+  setTeamId: (value: string | null) => void;
+  selectedProject: string | null;
+  setSelectedProject: (value: string | null) => void;
+  subscriptionId: string | null;
+  setSubscriptionId: (value: string | null) => void;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const AuthContext = createContext<AuthContextProps | undefined>(undefined);
 
-export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  const [accessToken, setAccessToken] = useState<string | null>(null);
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [teamId, setTeamId] = useState<string | null>(null);
-  const [code, setCode] = useState<string | null>(null);
-  const [jwtToken, setJwtToken] = useState<string | null>(null);
-  const [userInfo, setUserInfo] = useState<any>(null);
+  const [selectedProject, setSelectedProject] = useState<string | null>(null);
+  const [subscriptionId, setSubscriptionId] = useState<string | null>(null);
 
   return (
     <AuthContext.Provider
       value={{
-        accessToken,
+        isAuthenticated,
+        setIsAuthenticated,
         teamId,
-        code,
-        jwtToken,
-        userInfo,
-        setAccessToken,
         setTeamId,
-        setCode,
-        setJwtToken,
-        setUserInfo,
+        selectedProject,
+        setSelectedProject,
+        subscriptionId,
+        setSubscriptionId,
       }}
     >
       {children}
     </AuthContext.Provider>
   );
-};
+}
 
-export const useAuth = (): AuthContextType => {
+export function useAuth() {
   const context = useContext(AuthContext);
   if (!context) {
-    throw new Error("useAuth deve ser usado dentro de um AuthProvider");
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
-};
+}

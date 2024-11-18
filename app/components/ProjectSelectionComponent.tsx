@@ -1,91 +1,100 @@
-// app/components/ProjectSelectionComponent.tsx
-
 "use client";
 
 import { useState, useEffect } from "react";
 import { useAuth } from "../contexts/AuthContext";
+import { useRouter } from "next/navigation";
 
 interface ProjectSelectionComponentProps {
   onNext: () => void;
-  onBack: () => void;
-  setSelectedProject: (projectId: string) => void;
 }
 
-export default function ProjectSelectionComponent({
-  onNext,
-  onBack,
-  setSelectedProject,
-}: ProjectSelectionComponentProps) {
-  const { accessToken } = useAuth();
+export default function ProjectSelectionComponent({ onNext }: ProjectSelectionComponentProps) {
+  const { setSelectedProject } = useAuth(); // Função para salvar o projeto no contexto
   const [projects, setProjects] = useState<any[]>([]);
-  const [selectedProjectId, setSelectedProjectId] = useState<string>("");
+  const [selectedProject, setSelectedProjectState] = useState<string>(""); // Estado local para o projeto selecionado
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const router = useRouter();
 
   useEffect(() => {
     const fetchProjects = async () => {
       try {
-        if (!accessToken) {
-          throw new Error("Token de acesso ausente.");
-        }
+        setIsLoading(true);
 
+        // Chamada à API para buscar projetos
         const response = await fetch("/api/projects", {
-          headers: {
-            Authorization: `Bearer ${accessToken}`,
-          },
+          method: "GET",
+          credentials: "include", // Inclui cookies na requisição
         });
+
+        if (response.status === 401) {
+          // Usuário não autenticado
+          console.warn("Usuário não autenticado.");
+          setErrorMessage("Por favor, faça login novamente.");
+          return;
+        }
 
         const data = await response.json();
 
-        if (!response.ok) {
-          throw new Error(data.message || "Erro ao buscar projetos.");
+        if (response.ok) {
+          setProjects(data.projects || []);
+        } else {
+          setErrorMessage(data.message || "Erro ao obter projetos.");
         }
-
-        setProjects(data.projects || []);
       } catch (error: any) {
-        console.error("Erro ao buscar projetos:", error);
-        // Você pode definir uma mensagem de erro no estado, se desejar
+        console.error("Erro ao obter projetos:", error);
+        setErrorMessage("Erro ao obter projetos. Tente novamente.");
+      } finally {
+        setIsLoading(false);
       }
     };
 
     fetchProjects();
-  }, [accessToken]);
+  }, []);
 
   const handleNext = () => {
-    if (selectedProjectId) {
-      setSelectedProject(selectedProjectId);
-      onNext();
+    if (selectedProject) {
+      setSelectedProject(selectedProject); // Salva o projeto selecionado no contexto
+      onNext(); // Avança para o próximo passo
     } else {
-      alert("Por favor, selecione um projeto.");
+      setErrorMessage("Por favor, selecione um projeto.");
     }
   };
 
   return (
     <div>
-      <h2 className="text-2xl font-semibold text-center mb-6">Selecione Seu Projeto</h2>
-      <div className="space-y-2 max-h-48 overflow-y-auto">
-        <select
-          className="w-full p-3 border rounded bg-white"
-          value={selectedProjectId}
-          onChange={(e) => setSelectedProjectId(e.target.value)}
-        >
-          <option value="" disabled>
-            Selecione um projeto
-          </option>
+      <h2 className="text-2xl font-semibold text-center mb-6">Seleção de Projeto</h2>
+      {errorMessage && <p className="text-red-500 mb-4">{errorMessage}</p>}
+      {isLoading ? (
+        <p>Carregando projetos...</p>
+      ) : projects.length > 0 ? (
+        <div className="space-y-4">
           {projects.map((project) => (
-            <option key={project.id} value={project.id}>
-              {project.name}
-            </option>
+            <div key={project.id} className="flex items-center">
+              <input
+                type="radio"
+                id={project.id}
+                name="project"
+                value={project.id}
+                checked={selectedProject === project.id}
+                onChange={(e) => setSelectedProjectState(e.target.value)} // Atualiza o estado local
+                className="mr-2"
+              />
+              <label htmlFor={project.id} className="cursor-pointer">
+                {project.name}
+              </label>
+            </div>
           ))}
-        </select>
-      </div>
+        </div>
+      ) : (
+        <p>Nenhum projeto encontrado.</p>
+      )}
       <button
-        className="bg-black text-white py-2 w-full rounded mt-4"
+        className="bg-black text-white px-4 py-2 rounded mt-4"
         onClick={handleNext}
-        disabled={!selectedProjectId}
+        disabled={isLoading || !selectedProject}
       >
-        Salvar e Continuar
-      </button>
-      <button className="text-gray-500 mt-2" onClick={onBack}>
-        Voltar
+        Próximo
       </button>
     </div>
   );

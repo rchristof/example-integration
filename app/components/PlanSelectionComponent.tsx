@@ -1,50 +1,42 @@
-// app/components/PlanSelectionComponent.tsx
-
 "use client";
 
 import { useState, useEffect } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { useRouter, useSearchParams } from "next/navigation";
-import InstanceCreationForm from "./InstanceCreationForm"; // Importar o componente
+import InstanceCreationForm from "./InstanceCreationForm";
 
 interface PlanSelectionComponentProps {
   onBack: () => void;
-  selectedProject: string;
 }
 
-export default function PlanSelectionComponent({
-  onBack,
-  selectedProject,
-}: PlanSelectionComponentProps) {
-  const { jwtToken, accessToken, teamId } = useAuth();
+export default function PlanSelectionComponent({ onBack }: PlanSelectionComponentProps) {
+  const { teamId, selectedProject, subscriptionId, setSubscriptionId } = useAuth();
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [hasBasicPlan, setHasBasicPlan] = useState<boolean>(false);
-  const [basicSubscriptionId, setBasicSubscriptionId] = useState<string | null>(null);
+  const [hasBasicPlan, setHasBasicPlan] = useState<boolean>(!!subscriptionId);
   const [existingInstanceIds, setExistingInstanceIds] = useState<string[]>([]);
   const [selectedInstanceId, setSelectedInstanceId] = useState<string | null>(null);
   const [instancePassword, setInstancePassword] = useState<string>("");
   const [showInstanceForm, setShowInstanceForm] = useState<boolean>(false);
+  const [falkorDbUser, setFalkorDbUser] = useState<string>("");
 
   const router = useRouter();
   const searchParams = useSearchParams();
   const next = searchParams?.get("next") || null;
 
-  // Buscar assinaturas e instâncias do usuário ao montar o componente
   useEffect(() => {
+    if (!teamId) {
+      console.warn("teamId está ausente. Verifique o fluxo de autenticação.");
+      setErrorMessage("Erro: O ID da equipe não foi encontrado.");
+      return;
+    }
+
     const fetchSubscriptionsAndInstances = async () => {
       try {
-        if (!jwtToken) {
-          throw new Error("Token de autenticação ausente.");
-        }
-
-        // 1. Buscar assinaturas do usuário
         const response = await fetch("/api/subscriptions", {
           method: "GET",
-          headers: {
-            Authorization: `Bearer ${jwtToken}`,
-          },
+          credentials: "include",
         });
 
         const data = await response.json();
@@ -53,146 +45,18 @@ export default function PlanSelectionComponent({
           throw new Error(data.message || "Erro ao obter assinaturas.");
         }
 
-        console.log("Assinaturas do Usuário:", data);
-
-        // 2. Verificar se o usuário possui o plano básico
-        let basicSubscription = null;
-
-        if (data.subscriptions && Array.isArray(data.subscriptions)) {
-          basicSubscription = data.subscriptions.find(
-            (sub: any) => sub.productTierId === "pt-YhJSEGRCYv" && sub.status === "ACTIVE"
-          );
-        } else if (data.ids && Array.isArray(data.ids)) {
-          if (data.ids.length > 0) {
-            // Buscar detalhes de cada assinatura
-            const subscriptionsPromises = data.ids.map(async (id: string) => {
-              const subResponse = await fetch(`/api/subscriptions?subscriptionId=${id}`, {
-                method: "GET",
-                headers: {
-                  Authorization: `Bearer ${jwtToken}`,
-                },
-              });
-              if (!subResponse.ok) {
-                const subData = await subResponse.json();
-                throw new Error(subData.message || "Erro ao obter detalhes da assinatura.");
-              }
-              return subResponse.json();
-            });
-
-            const subscriptions = await Promise.all(subscriptionsPromises);
-
-            // Procurar o plano básico nas assinaturas detalhadas
-            basicSubscription = subscriptions.find(
-              (sub: any) => sub.productTierId === "pt-YhJSEGRCYv" && sub.status === "ACTIVE"
-            );
-          }
-        }
+        const basicSubscription = data.subscriptions?.find(
+          (sub: any) => sub.productTierId === "pt-YhJSEGRCYv" && sub.status === "ACTIVE"
+        );
 
         if (basicSubscription) {
+          console.log("Assinatura básica encontrada:", basicSubscription);
           setHasBasicPlan(true);
-          setBasicSubscriptionId(basicSubscription.id);
+          setSubscriptionId(basicSubscription.id);
 
-          // 3. Buscar instâncias relacionadas a essa assinatura
-          const fetchInstances = async () => {
-            try {
-              const instancesResponse = await fetch(
-                `/api/instances?subscriptionId=${basicSubscription.id}`,
-                {
-                  method: "GET",
-                  headers: {
-                    Authorization: `Bearer ${jwtToken}`,
-                  },
-                }
-              );
-
-              const instancesData = await instancesResponse.json();
-
-              if (!instancesResponse.ok) {
-                throw new Error(instancesData.message || "Erro ao obter instâncias.");
-              }
-
-              console.log("Instâncias Existentes:", instancesData);
-
-              if (
-                instancesData.ids &&
-                Array.isArray(instancesData.ids) &&
-                instancesData.ids.length > 0
-              ) {
-                setExistingInstanceIds(instancesData.ids);
-              } else {
-                setExistingInstanceIds([]);
-              }
-            } catch (error: any) {
-              console.error("Erro ao obter instâncias existentes:", error);
-              setErrorMessage(error.message || "Erro ao obter instâncias existentes.");
-            }
-          };
-
-          await fetchInstances();
-        } else {
-          setHasBasicPlan(false);
-        }
-      } catch (error: any) {
-        console.error("Erro ao obter assinaturas:", error);
-        setErrorMessage(error.message || "Erro ao obter assinaturas.");
-      }
-    };
-
-    fetchSubscriptionsAndInstances();
-  }, [jwtToken]);
-
-  const handleSubscribe = async () => {
-    try {
-      if (!jwtToken) {
-        throw new Error("Token de autenticação ausente.");
-      }
-
-      setIsLoading(true);
-      setErrorMessage(null);
-
-      // 1. Criar uma nova assinatura
-      const response = await fetch("/api/subscriptions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${jwtToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          serviceId: "s-KgFDwg5vBS",
-          productTierId: "pt-YhJSEGRCYv",
-        }),
-      });
-
-      const subscriptionDataRaw = await response.text();
-      console.log("Dados da Assinatura (raw):", subscriptionDataRaw);
-
-      if (!response.ok) {
-        console.error("Erro na resposta da API de assinatura:", subscriptionDataRaw);
-        throw new Error(subscriptionDataRaw || "Falha na assinatura.");
-      }
-
-      // Remover quaisquer aspas extras do subscriptionId
-      let subscriptionId = subscriptionDataRaw.replace(/^"|"$/g, "");
-
-      if (!subscriptionId) {
-        throw new Error("subscriptionId não encontrado na resposta da API.");
-      }
-
-      console.log("Subscription ID:", subscriptionId);
-      setBasicSubscriptionId(subscriptionId);
-      setHasBasicPlan(true);
-
-      // 2. Buscar instâncias relacionadas a essa nova assinatura
-      const fetchInstances = async () => {
-        try {
           const instancesResponse = await fetch(
-            `/api/instances?subscriptionId=${subscriptionId}`,
-            {
-              method: "GET",
-              headers: {
-                Authorization: `Bearer ${jwtToken}`,
-              },
-            }
+            `/api/instances?subscriptionId=${basicSubscription.id}`,
+            { method: "GET", credentials: "include" }
           );
 
           const instancesData = await instancesResponse.json();
@@ -201,96 +65,75 @@ export default function PlanSelectionComponent({
             throw new Error(instancesData.message || "Erro ao obter instâncias.");
           }
 
-          console.log("Instâncias Existentes:", instancesData);
-
-          if (
-            instancesData.ids &&
-            Array.isArray(instancesData.ids) &&
-            instancesData.ids.length > 0
-          ) {
-            setExistingInstanceIds(instancesData.ids);
-          } else {
-            setExistingInstanceIds([]);
-          }
-        } catch (error: any) {
-          console.error("Erro ao obter instâncias existentes:", error);
-          setErrorMessage(error.message || "Erro ao obter instâncias existentes.");
+          setExistingInstanceIds(instancesData.ids || []);
+        } else {
+          setHasBasicPlan(false);
         }
-      };
+      } catch (error: any) {
+        setErrorMessage(error.message || "Erro ao carregar dados.");
+      }
+    };
 
-      await fetchInstances();
-      // 3. Exibir o formulário para criação de uma nova instância
-      setShowInstanceForm(true);
+    fetchSubscriptionsAndInstances();
+  }, [teamId, setSubscriptionId]);
+
+  const handleCreateSubscription = async () => {
+    try {
+      setIsLoading(true);
+      setErrorMessage(null);
+
+      if (!teamId || !selectedProject) {
+        throw new Error("Parâmetros obrigatórios ausentes: teamId ou selectedProject.");
+      }
+
+      const response = await fetch("/api/subscriptions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          productTierId: "pt-YhJSEGRCYv",
+          projectId: selectedProject,
+          teamId,
+          serviceId: "s-KgFDwg5vBS",
+        }),
+        credentials: "include",
+      });
+
+      const data = await response.text(); // A resposta é o ID direto como string
+
+      if (!response.ok) {
+        throw new Error("Erro ao criar assinatura.");
+      }
+
+      console.log("Nova assinatura criada:", data);
+      setSubscriptionId(data); // Atualiza o contexto
+      setHasBasicPlan(true);
+
+      const instancesResponse = await fetch(`/api/instances?subscriptionId=${data}`, {
+        method: "GET",
+        credentials: "include",
+      });
+
+      const instancesData = await instancesResponse.json();
+
+      if (!instancesResponse.ok) {
+        throw new Error(instancesData.message || "Erro ao obter instâncias da nova assinatura.");
+      }
+
+      setExistingInstanceIds(instancesData.ids || []);
     } catch (error: any) {
-      console.error("Erro ao processar a assinatura:", error);
-      setErrorMessage(error.message || "Erro ao processar a assinatura.");
+      console.error("Erro ao criar assinatura:", error);
+      setErrorMessage(error.message || "Erro ao criar assinatura.");
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleSelectInstance = async () => {
+  const handleSaveInstanceCredentials = async (user: string, password: string) => {
     try {
-      if (!selectedInstanceId) {
-        setErrorMessage("Por favor, selecione uma instância.");
-        return;
-      }
-
-      if (!jwtToken) {
-        throw new Error("Token de autenticação ausente.");
-      }
-
-      if (!instancePassword) {
-        setErrorMessage("Por favor, insira a senha da instância.");
-        return;
-      }
-
-      setIsLoading(true);
-      setErrorMessage(null);
-
-      // Fazer a chamada à API para obter os detalhes da instância
-      const instanceDetailsResponse = await fetch(
-        `/api/instances?subscriptionId=${basicSubscriptionId}&instanceId=${selectedInstanceId}`,
-        {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${jwtToken}`,
-          },
-        }
-      );
-
-      const instanceDetailsData = await instanceDetailsResponse.json();
-
-      if (!instanceDetailsResponse.ok) {
-        throw new Error(instanceDetailsData.message || "Erro ao obter detalhes da instância.");
-      }
-
-      // Exibir os detalhes da instância no console
-      console.log("Detalhes da Instância Selecionada:", instanceDetailsData);
-
-      // Extrair falkordbUser dos detalhes da instância
-      let falkordbUser =
-        instanceDetailsData.result_params?.falkordbUser ||
-        instanceDetailsData.result_params?.falkorDBUser;
-
-      if (!falkordbUser) {
-        // Tentar obter de requestParams
-        falkordbUser =
-          instanceDetailsData.requestParams?.falkordbUser ||
-          instanceDetailsData.requestParams?.falkorDBUser;
-      }
-
-      if (!falkordbUser) {
-        throw new Error("Não foi possível obter 'falkordbUser' dos detalhes da instância.");
-      }
-
-      // Imprimir falkordbUser e a senha no console
-      console.log("falkordbUser:", falkordbUser);
-      console.log("Senha da Instância fornecida pelo usuário:", instancePassword);
-
-      // Salvar as credenciais nas variáveis de ambiente
-      if (!accessToken) {
-        throw new Error("Token de acesso do Vercel ausente.");
+      if (!teamId || !selectedProject) {
+        throw new Error("Parâmetros obrigatórios ausentes: teamId ou selectedProject.");
       }
 
       const saveResponse = await fetch("/api/save-token-to-env", {
@@ -299,14 +142,14 @@ export default function PlanSelectionComponent({
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          accessToken,
           variables: [
-            { key: "FALKORDB_USER", value: falkordbUser },
-            { key: "FALKORDB_PASSWORD", value: instancePassword },
+            { key: "FALKORDB_USER", value: user },
+            { key: "FALKORDB_PASSWORD", value: password },
           ],
           projectId: selectedProject,
           teamId,
         }),
+        credentials: "include",
       });
 
       const saveData = await saveResponse.json();
@@ -315,16 +158,46 @@ export default function PlanSelectionComponent({
         throw new Error(saveData.message || "Erro ao salvar as variáveis de ambiente.");
       }
 
-      console.log("Dados da instância selecionada salvos com sucesso.");
-
-      setSuccessMessage("Instância selecionada salva com sucesso!");
-
-      // Redirecionar o usuário se a URL 'next' estiver disponível
+      setSuccessMessage("Instância criada e configurada com sucesso!");
       if (next) {
         router.push(next);
-      } else {
-        console.error("URL Next não fornecida");
       }
+    } catch (error: any) {
+      console.error("Erro ao salvar as credenciais da instância:", error);
+      setErrorMessage(error.message || "Erro ao salvar as credenciais.");
+    }
+  };
+
+  const handleSelectInstance = async () => {
+    if (!selectedInstanceId || !instancePassword) {
+      setErrorMessage("Por favor, selecione uma instância e insira a senha.");
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+
+      const instanceDetailsResponse = await fetch(
+        `/api/instances?subscriptionId=${subscriptionId}&instanceId=${selectedInstanceId}`,
+        { method: "GET", credentials: "include" }
+      );
+
+      const instanceDetails = await instanceDetailsResponse.json();
+
+      if (!instanceDetailsResponse.ok) {
+        throw new Error(instanceDetails.message || "Erro ao obter detalhes da instância.");
+      }
+
+      const user = instanceDetails.createdByUserName; 
+
+
+      if (!user) {
+        throw new Error("Usuário não encontrado nos detalhes da instância.");
+      }
+
+      setFalkorDbUser(user);
+
+      await handleSaveInstanceCredentials(user, instancePassword);
     } catch (error: any) {
       console.error("Erro ao selecionar a instância:", error);
       setErrorMessage(error.message || "Erro ao selecionar a instância.");
@@ -333,205 +206,68 @@ export default function PlanSelectionComponent({
     }
   };
 
-  const handleCancelSubscription = async () => {
-    try {
-      if (!jwtToken || !basicSubscriptionId) {
-        throw new Error("Tokens de autenticação ou ID de assinatura ausentes.");
-      }
-
-      setIsLoading(true);
-      setErrorMessage(null);
-
-      const response = await fetch(
-        `/api/subscriptions?subscriptionId=${basicSubscriptionId}`,
-        {
-          method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${jwtToken}`,
-          },
-        }
-      );
-
-      const data = await response.text();
-      console.log("Resposta do Cancelamento:", data);
-
-      if (!response.ok) {
-        throw new Error(data || "Erro ao cancelar a assinatura.");
-      }
-
-      setHasBasicPlan(false);
-      setBasicSubscriptionId(null);
-      setExistingInstanceIds([]);
-      setSuccessMessage("Assinatura cancelada com sucesso.");
-    } catch (error: any) {
-      console.error("Erro ao cancelar a assinatura:", error);
-      setErrorMessage(error.message || "Erro ao cancelar a assinatura.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleCreateNewInstance = () => {
-    setShowInstanceForm(true);
-  };
-
-  const handleCancel = () => {
-    // Resetar estados
-    setShowInstanceForm(false);
-    setSelectedInstanceId(null);
-    setInstancePassword("");
-  };
-
-  const handleSuccess = async (instanceUser: string, instancePassword: string) => {
-    try {
-      setSuccessMessage("Instância implantada com sucesso!");
-      setShowInstanceForm(false);
-      setSelectedInstanceId(null);
-
-      // Salvar as credenciais nas variáveis de ambiente
-      if (!accessToken) {
-        throw new Error("Token de acesso do Vercel ausente.");
-      }
-
-      const saveResponse = await fetch("/api/save-token-to-env", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          accessToken,
-          variables: [
-            { key: "FALKORDB_USER", value: instanceUser },
-            { key: "FALKORDB_PASSWORD", value: instancePassword },
-          ],
-          projectId: selectedProject,
-          teamId,
-        }),
-      });
-
-      const saveData = await saveResponse.json();
-
-      if (!saveResponse.ok) {
-        throw new Error(saveData.message || "Erro ao salvar as variáveis de ambiente.");
-      }
-
-      console.log("Dados da instância criada salvos com sucesso.");
-
-      // Redirecionar o usuário se a URL 'next' estiver disponível
-      if (next) {
-        router.push(next);
-      } else {
-        console.error("URL Next não fornecida");
-      }
-    } catch (error: any) {
-      console.error("Erro ao salvar as variáveis de ambiente:", error);
-      setErrorMessage(error.message || "Erro ao salvar as variáveis de ambiente.");
-    }
-  };
-
   return (
     <div>
       <h2 className="text-2xl font-semibold text-center mb-6">Planos</h2>
       {errorMessage && <p className="text-red-500 mb-4">{errorMessage}</p>}
       {successMessage && <p className="text-green-500 mb-4">{successMessage}</p>}
+
       <div className="space-y-4">
         <div className="border p-4 rounded">
           <h2 className="text-xl font-semibold">Plano Básico</h2>
-          <p className="mt-2">Descrição do plano básico.</p>
-
-          {showInstanceForm ? (
-            // Exibir o formulário de criação de instância
-            <InstanceCreationForm
-              subscriptionId={basicSubscriptionId!}
-              selectedProject={selectedProject}
-              teamId={teamId}
-              onSuccess={handleSuccess}
-              onCancel={handleCancel}
-            />
-          ) : hasBasicPlan ? (
-            existingInstanceIds.length > 0 ? (
-              // Se há instâncias existentes, listar e permitir seleção
-              <div className="mt-4 space-y-4">
-                <p>Selecione uma instância existente:</p>
-                <div className="space-y-2">
-                  {existingInstanceIds.map((id) => (
-                    <div key={id} className="flex items-center">
-                      <input
-                        type="radio"
-                        id={id}
-                        name="existingInstance"
-                        value={id}
-                        checked={selectedInstanceId === id}
-                        onChange={(e) => setSelectedInstanceId(e.target.value)}
-                        className="mr-2"
-                      />
-                      <label htmlFor={id} className="cursor-pointer">
-                        {id}
-                      </label>
-                    </div>
-                  ))}
-                </div>
-                {selectedInstanceId && (
-                  <div>
-                    {/* Campo para o usuário inserir a senha da instância */}
-                    <div>
-                      <label className="block font-medium">Senha da Instância</label>
-                      <input
-                        type="password"
-                        className="w-full p-2 border rounded"
-                        value={instancePassword}
-                        onChange={(e) => setInstancePassword(e.target.value)}
-                        placeholder="Digite a senha da instância"
-                      />
-                    </div>
-
-                    <button
-                      className="bg-black text-white px-4 py-2 rounded mt-4"
-                      onClick={handleSelectInstance}
-                      disabled={isLoading}
-                    >
-                      {isLoading ? "Processando..." : "Usar Instância Selecionada"}
-                    </button>
-                  </div>
-                )}
-                <div>
-                  <button
-                    className="bg-black text-white px-4 py-2 rounded mt-4"
-                    onClick={handleCreateNewInstance}
-                    disabled={isLoading}
-                  >
-                    {isLoading ? "Processando..." : "Criar Nova Instância"}
-                  </button>
-                </div>
-              </div>
-            ) : (
-              // Se não há instâncias existentes, mostrar a opção de criar uma
-              <div className="mt-4 space-y-4">
-                <p>Você não possui instâncias existentes.</p>
-                <button
-                  className="bg-black text-white px-4 py-2 rounded mt-4"
-                  onClick={handleCreateNewInstance}
-                  disabled={isLoading}
-                >
-                  {isLoading ? "Processando..." : "Criar Instância"}
-                </button>
-              </div>
-            )
-          ) : (
-            // Se o usuário não tem o plano básico
-            <div className="mt-4 space-y-4">
-              <button
-                className="bg-black text-white px-4 py-2 rounded"
-                onClick={handleSubscribe}
-                disabled={isLoading}
+          {existingInstanceIds.length > 0 && (
+            <>
+              <label htmlFor="existingInstances" className="block font-medium">
+                Instâncias Existentes
+              </label>
+              <select
+                id="existingInstances"
+                className="w-full p-2 border rounded mb-4"
+                value={selectedInstanceId || ""}
+                onChange={(e) => setSelectedInstanceId(e.target.value)}
               >
-                {isLoading ? "Processando..." : "Assinar Plano Básico"}
-              </button>
-            </div>
+                <option value="">Selecione uma instância</option>
+                {existingInstanceIds.map((id) => (
+                  <option key={id} value={id}>
+                    {id}
+                  </option>
+                ))}
+              </select>
+              {selectedInstanceId && (
+                <>
+                  <input
+                    type="password"
+                    className="w-full p-2 border rounded mb-4"
+                    placeholder="Senha da Instância"
+                    value={instancePassword}
+                    onChange={(e) => setInstancePassword(e.target.value)}
+                  />
+                  <button
+                    onClick={handleSelectInstance}
+                    className="bg-black text-white px-4 py-2 rounded"
+                  >
+                    Configurar Instância Selecionada
+                  </button>
+                </>
+              )}
+            </>
+          )}
+          {showInstanceForm ? (
+            <InstanceCreationForm
+              subscriptionId={subscriptionId!}
+              selectedProject={selectedProject!}
+              teamId={teamId!}
+              onSuccess={handleSaveInstanceCredentials}
+              onCancel={() => setShowInstanceForm(false)}
+            />
+          ) : (
+            <button onClick={() => setShowInstanceForm(true)} className="mt-4">
+              Criar Nova Instância
+            </button>
           )}
         </div>
       </div>
-      <button className="text-gray-500 mt-2" onClick={onBack}>
+      <button onClick={onBack} className="mt-4">
         Voltar
       </button>
     </div>

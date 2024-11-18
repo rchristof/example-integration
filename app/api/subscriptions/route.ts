@@ -1,10 +1,11 @@
 // app/api/subscriptions/route.ts
 
 import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 
-export async function GET(request: Request) {
+export const GET = async (request: Request) => {
   try {
-    const jwtToken = request.headers.get('Authorization')?.split('Bearer ')[1];
+    const jwtToken = cookies().get('jwtToken')?.value;
 
     if (!jwtToken) {
       return NextResponse.json({ message: 'Token de autenticação ausente.' }, { status: 401 });
@@ -25,11 +26,11 @@ export async function GET(request: Request) {
     console.error('Erro na rota /api/subscriptions:', error);
     return NextResponse.json({ message: 'Erro interno do servidor.' }, { status: 500 });
   }
-}
+};
 
-export async function POST(request: Request) {
+export const POST = async (request: Request) => {
   try {
-    const jwtToken = request.headers.get('Authorization')?.split('Bearer ')[1];
+    const jwtToken = cookies().get('jwtToken')?.value;
 
     if (!jwtToken) {
       return NextResponse.json({ message: 'Token de autenticação ausente.' }, { status: 401 });
@@ -46,18 +47,18 @@ export async function POST(request: Request) {
       body: JSON.stringify(body),
     });
 
-    const data = await response.text(); // Pode ser texto ou JSON
+    const data = await response.text();
 
     return new Response(data, { status: response.status });
   } catch (error) {
     console.error('Erro na rota /api/subscriptions:', error);
     return NextResponse.json({ message: 'Erro interno do servidor.' }, { status: 500 });
   }
-}
+};
 
-// export async function DELETE(request: Request) {
+// export const DELETE = async (request: Request) => {
 //   try {
-//     const jwtToken = request.headers.get('Authorization')?.split('Bearer ')[1];
+//     const jwtToken = cookies().get('jwtToken')?.value;
 
 //     if (!jwtToken) {
 //       return NextResponse.json({ message: 'Token de autenticação ausente.' }, { status: 401 });
@@ -85,4 +86,4 @@ export async function POST(request: Request) {
 //     console.error('Erro na rota /api/subscriptions:', error);
 //     return NextResponse.json({ message: 'Erro interno do servidor.' }, { status: 500 });
 //   }
-// }
+// };

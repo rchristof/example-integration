@@ -1,15 +1,12 @@
-// app/components/InstanceCreationForm.tsx
-
 "use client";
 
 import { useState } from "react";
-import { useAuth } from "../contexts/AuthContext";
 
 interface InstanceCreationFormProps {
   subscriptionId: string;
   selectedProject: string;
   teamId?: string;
-  onSuccess: (instanceUser: string, instancePassword: string) => void;
+  onSuccess: (user: string, password: string) => void;
   onCancel: () => void;
 }
 
@@ -20,7 +17,6 @@ export default function InstanceCreationForm({
   onSuccess,
   onCancel,
 }: InstanceCreationFormProps) {
-  const { jwtToken } = useAuth();
   const [instanceName, setInstanceName] = useState<string>("");
   const [instanceUser, setInstanceUser] = useState<string>("");
   const [instancePassword, setInstancePassword] = useState<string>("");
@@ -31,13 +27,11 @@ export default function InstanceCreationForm({
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Opções fixas de provedores
   const providers = [
     { id: "aws", name: "AWS" },
     { id: "gcp", name: "GCP" },
   ];
 
-  // Opções de regiões dependentes do provedor selecionado
   const regions = {
     aws: [
       { id: "ap-south-1", name: "Asia Pacific (Mumbai)" },
@@ -57,25 +51,21 @@ export default function InstanceCreationForm({
 
   const handleCreateInstance = async () => {
     try {
-      if (
-        !selectedProvider ||
-        !selectedRegion ||
-        !instanceName ||
-        !instanceUser ||
-        !instancePassword
-      ) {
+      if (!selectedProvider || !selectedRegion || !instanceName || !instanceUser || !instancePassword) {
         setErrorMessage("Por favor, preencha todos os campos.");
+        console.error("Campos ausentes:", {
+          selectedProvider,
+          selectedRegion,
+          instanceName,
+          instanceUser,
+          instancePassword,
+        });
         return;
-      }
-
-      if (!jwtToken) {
-        throw new Error("Token de autenticação ausente.");
       }
 
       setIsLoading(true);
       setErrorMessage(null);
 
-      // Dados para a criação da instância
       const instanceData = {
         cloud_provider: selectedProvider,
         region: selectedRegion,
@@ -86,33 +76,30 @@ export default function InstanceCreationForm({
         },
       };
 
-      // Fazer a chamada para a rota de API interna
-      const response = await fetch("/api/create-instance", {
+      const requestBody = {
+        subscriptionId,
+        instanceData,
+      };
+
+      console.log("Enviando dados da instância:", requestBody);
+
+      const response = await fetch("/api/instances", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${jwtToken}`,
         },
-        body: JSON.stringify({
-          subscriptionId,
-          instanceData,
-        }),
+        body: JSON.stringify(requestBody),
+        credentials: "include",
       });
 
       const data = await response.json();
 
       if (!response.ok) {
+        console.error("Erro na resposta da API:", data);
         throw new Error(data.message || "Erro ao criar a instância.");
       }
 
-      const instanceId = data.instanceId || data.id;
-      if (!instanceId) {
-        throw new Error("ID da instância não retornado pela API.");
-      }
-
-      console.log("Instância criada com sucesso:", instanceId);
-
-      // Chamar a função onSuccess passando os dados necessários
+      console.log("Instância criada com sucesso:", data);
       onSuccess(instanceUser, instancePassword);
     } catch (error: any) {
       console.error("Erro ao criar a instância:", error);
@@ -122,7 +109,6 @@ export default function InstanceCreationForm({
     }
   };
 
-  // Obter as regiões disponíveis com base no provedor selecionado
   const availableRegions = selectedProvider ? regions[selectedProvider] : [];
 
   return (
@@ -136,7 +122,7 @@ export default function InstanceCreationForm({
           value={selectedProvider}
           onChange={(e) => {
             setSelectedProvider(e.target.value);
-            setSelectedRegion(""); // Resetar a região ao mudar o provedor
+            setSelectedRegion("");
           }}
         >
           <option value="">Selecione um provedor</option>

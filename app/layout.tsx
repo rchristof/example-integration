@@ -1,6 +1,7 @@
 // app/layout.tsx
 
 import "./globals.css";
+import { AuthProvider } from "./contexts/AuthContext";
 
 export const metadata = {
   title: "Seu Título de App",
@@ -10,7 +11,9 @@ export const metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="pt-BR">
-      <body>{children}</body>
+      <body>
+        <AuthProvider>{children}</AuthProvider>
+      </body>
     </html>
   );
 }

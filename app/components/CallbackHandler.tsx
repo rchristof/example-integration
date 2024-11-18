@@ -1,45 +1,45 @@
-// app/components/CallbackHandler.tsx
-
 "use client";
 
 import { useEffect } from "react";
 import { useSearchParams } from "next/navigation";
 import { useAuth } from "../contexts/AuthContext";
-import { exchangeCodeForAccessToken } from "../actions/exchange-code-for-access-token";
 
 export default function CallbackHandler() {
   const searchParams = useSearchParams();
-  const { setAccessToken, setTeamId, setCode, setUserInfo } = useAuth();
-  const code = searchParams?.get("code") || null;
+  const code = searchParams?.get("code");
+  const { setTeamId } = useAuth();
 
   useEffect(() => {
-    if (!code) {
-      console.error("Código de autorização é nulo");
-      return;
-    }
-    setCode(code);
-    const fetchAccessToken = async () => {
-      const result = await exchangeCodeForAccessToken(code);
-      setAccessToken(result.access_token);
-      setTeamId(result.team_id);
-      fetchUserInfo(result.access_token);
-    };
-    const fetchUserInfo = async (token: string) => {
+    const handleAuthentication = async () => {
+      if (!code) {
+        console.error("Código de autorização ausente");
+        return;
+      }
+
       try {
-        const response = await fetch("https://api.vercel.com/v2/user", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
+        const response = await fetch("/api/exchange-code-for-access-token", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ code }),
+          credentials: "include",
         });
+
+        if (!response.ok) {
+          throw new Error("Erro ao trocar código por token de acesso.");
+        }
+
         const data = await response.json();
-        setUserInfo(data.user);
+
+        if (data.teamId) {
+          setTeamId(data.teamId); // Salve o teamId no contexto
+        }
       } catch (error) {
-        console.error("Erro ao buscar informações do usuário:", error);
+        console.error("Erro durante a autenticação:", error);
       }
     };
-    fetchAccessToken();
-  }, [code, setAccessToken, setTeamId, setCode, setUserInfo]);
+
+    handleAuthentication();
+  }, [code, setTeamId]);
 
   return null;
 }

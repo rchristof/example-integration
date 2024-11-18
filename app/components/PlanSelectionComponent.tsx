@@ -19,6 +19,7 @@ export default function PlanSelectionComponent({ onBack }: PlanSelectionComponen
   const [selectedInstanceId, setSelectedInstanceId] = useState<string | null>(null);
   const [instancePassword, setInstancePassword] = useState<string>("");
   const [showInstanceForm, setShowInstanceForm] = useState<boolean>(false);
+  const [instanceUsername, setInstanceUsername] = useState<string | null>(null);
 
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -126,20 +127,17 @@ export default function PlanSelectionComponent({ onBack }: PlanSelectionComponen
     }
   };
 
-  const handleSelectInstance = async () => {
-    if (!selectedInstanceId || !instancePassword) {
-      setErrorMessage("Por favor, selecione uma instância e insira a senha.");
-      return;
-    }
+  const handleInstanceSelection = async (instanceId: string) => {
+    setSelectedInstanceId(instanceId);
+    setInstancePassword(""); // Resetar a senha
+    setInstanceUsername(null); // Resetar o nome de usuário
 
     try {
-      setIsLoading(true);
-
       const instanceDetailsResponse = await fetch(
-        `/api/instances?subscriptionId=${subscriptionId}&instanceId=${selectedInstanceId}`,
+        `/api/instances?subscriptionId=${subscriptionId}&instanceId=${instanceId}`,
         {
           method: "GET",
-          credentials: "include", // Inclui automaticamente o cookie de sessão
+          credentials: "include",
         }
       );
 
@@ -149,13 +147,22 @@ export default function PlanSelectionComponent({ onBack }: PlanSelectionComponen
         throw new Error(instanceDetails.message || "Erro ao obter detalhes da instância.");
       }
 
-      const user = instanceDetails.createdByUserName;
+      setInstanceUsername(instanceDetails.createdByUserName || ""); // Atualizar o nome de usuário
+    } catch (error: any) {
+      setErrorMessage(error.message || "Erro ao selecionar a instância.");
+    }
+  };
 
-      if (!user) {
-        throw new Error("Usuário não encontrado nos detalhes da instância.");
-      }
+  const handleSelectInstance = async () => {
+    if (!selectedInstanceId || !instancePassword) {
+      setErrorMessage("Por favor, selecione uma instância e insira a senha.");
+      return;
+    }
 
-      await handleSaveInstanceCredentials(user, instancePassword);
+    try {
+      setIsLoading(true);
+
+      await handleSaveInstanceCredentials(instanceUsername!, instancePassword);
     } catch (error: any) {
       setErrorMessage(error.message || "Erro ao selecionar a instância.");
     } finally {
@@ -217,7 +224,7 @@ export default function PlanSelectionComponent({ onBack }: PlanSelectionComponen
                 id="existingInstances"
                 className="w-full p-2 border rounded mb-4"
                 value={selectedInstanceId || ""}
-                onChange={(e) => setSelectedInstanceId(e.target.value)}
+                onChange={(e) => handleInstanceSelection(e.target.value)}
               >
                 <option value="">Selecione uma instância</option>
                 {existingInstanceIds.map((id) => (
@@ -226,6 +233,25 @@ export default function PlanSelectionComponent({ onBack }: PlanSelectionComponen
                   </option>
                 ))}
               </select>
+              {selectedInstanceId && instanceUsername && (
+                <>
+                  <p className="text-gray-700">Usuário: {instanceUsername}</p>
+                  <input
+                    type="password"
+                    className="w-full p-2 border rounded mb-4"
+                    placeholder="Senha da Instância"
+                    value={instancePassword}
+                    onChange={(e) => setInstancePassword(e.target.value)}
+                  />
+                  <button
+                    onClick={handleSelectInstance}
+                    className="bg-black text-white px-4 py-2 rounded"
+                    disabled={isLoading}
+                  >
+                    Continuar com Instância Selecionada
+                  </button>
+                </>
+              )}
             </>
           )}
           {showInstanceForm ? (
@@ -238,7 +264,7 @@ export default function PlanSelectionComponent({ onBack }: PlanSelectionComponen
           ) : (
             <button
               onClick={() => setShowInstanceForm(true)}
-              className="bg-black text-white px-4 py-2 rounded"
+              className="bg-black text-white px-4 py-2 rounded mt-4"
             >
               Criar Nova Instância
             </button>

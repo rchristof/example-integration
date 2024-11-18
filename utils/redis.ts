@@ -7,7 +7,7 @@ const redis = new Redis({
 //   tls: process.env.REDIS_TLS
 //     ? { rejectUnauthorized: false } // Para conexões seguras
 //     : undefined,
-  connectTimeout: 10000000000000000000000000000, // Timeout aumentado para 10 segundos
+  connectTimeout: 9999999999999999999, // Timeout aumentado para 10 segundos
 });
 
 redis.on("error", (err) => {

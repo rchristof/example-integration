@@ -19,6 +19,11 @@ const theme = createTheme({
       primary: "#111827",
       secondary: "#374151",
     },
+    gray: {
+      50: "#F9FAFB", // Cor clara
+      300: "#D1D5DB", // Cor média
+      500: "#6B7280", // Cor escura
+    },
   },
   typography: {
     fontFamily: "Manrope, Arial, sans-serif",

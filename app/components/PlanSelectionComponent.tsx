@@ -1,140 +1,126 @@
 "use client";
-
-import { useState, useEffect } from "react";
 import { useAuth } from "../contexts/AuthContext";
-import { useRouter, useSearchParams } from "next/navigation";
-import InstanceCreationForm from "./InstanceCreationForm";
+import { useEffect, useState } from "react";
+import MainImageLayout from "../components/NonDashboardComponents/Layout/MainImageLayout";
+import Card, { CardTitle } from "@components/NonDashboardComponents/Card";
+import Button from "@components/NonDashboardComponents/Button";
+import Select from "@components/NonDashboardComponents/FormElementsV2/Select";
+import MenuItem from "@components/NonDashboardComponents/FormElementsV2/MenuItem";
+import { Box, Typography, Stack, CircularProgress, TextField } from "@mui/material";
 
 interface PlanSelectionComponentProps {
+  onNext: (subscriptionId?: string) => void;
   onBack: () => void;
+  onFinish: () => void;
+  selectedProject: string;
 }
 
-export default function PlanSelectionComponent({ onBack }: PlanSelectionComponentProps) {
-  const { selectedProject, subscriptionId, setSubscriptionId } = useAuth();
+export default function PlanSelectionComponent({
+  onNext,
+  onBack,
+  onFinish,
+}: PlanSelectionComponentProps) {
+  const { selectedProject } = useAuth();
+  const { setSubscriptionId } = useAuth();
+  console.log("selectedProject", useAuth());
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [hasBasicPlan, setHasBasicPlan] = useState<boolean>(!!subscriptionId);
-  const [existingInstanceIds, setExistingInstanceIds] = useState<string[]>([]);
-  const [selectedInstanceId, setSelectedInstanceId] = useState<string | null>(null);
+  const [subscriptions, setSubscriptions] = useState<any[]>([]);
+  const [instances, setInstances] = useState<any[]>([]);
+  const [selectedInstance, setSelectedInstance] = useState<string | null>(null);
   const [instancePassword, setInstancePassword] = useState<string>("");
-  const [showInstanceForm, setShowInstanceForm] = useState<boolean>(false);
-  const [instanceUsername, setInstanceUsername] = useState<string | null>(null);
-
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const next = searchParams?.get("next") || null;
+  const [activeFreeSubscription, setActiveFreeSubscription] = useState<any | null>(null);
 
   useEffect(() => {
     const fetchSubscriptionsAndInstances = async () => {
       try {
         setIsLoading(true);
-
-        const response = await fetch("/api/subscriptions", {
+        const subscriptionResponse = await fetch("/api/subscriptions", {
           method: "GET",
-          credentials: "include", // Inclui automaticamente o cookie de sessão
+          credentials: "include",
         });
+        const subscriptionData = await subscriptionResponse.json();
 
-        const data = await response.json();
-
-        if (!response.ok) {
-          throw new Error(data.message || "Erro ao obter assinaturas.");
+        if (!subscriptionResponse.ok) {
+          throw new Error(subscriptionData.message || "Erro ao buscar subscrições.");
         }
 
-        const basicSubscription = data.subscriptions?.find(
+        setSubscriptions(subscriptionData.subscriptions);
+
+        const freeSubscription = subscriptionData.subscriptions?.find(
           (sub: any) => sub.productTierId === "pt-YhJSEGRCYv" && sub.status === "ACTIVE"
         );
+        setActiveFreeSubscription(freeSubscription);
 
-        if (basicSubscription) {
-          setHasBasicPlan(true);
-          setSubscriptionId(basicSubscription.id);
-
-          const instancesResponse = await fetch(
-            `/api/instances?subscriptionId=${basicSubscription.id}`,
+        if (freeSubscription) {
+          const instanceResponse = await fetch(
+            `/api/instances?subscriptionId=${freeSubscription.id}`,
             {
               method: "GET",
-              credentials: "include", // Inclui automaticamente o cookie de sessão
+              credentials: "include",
             }
           );
+          const instanceData = await instanceResponse.json();
 
-          const instancesData = await instancesResponse.json();
-
-          if (!instancesResponse.ok) {
-            throw new Error(instancesData.message || "Erro ao obter instâncias.");
+          if (!instanceResponse.ok) {
+            throw new Error(instanceData.message || "Erro ao buscar instâncias.");
           }
 
-          setExistingInstanceIds(instancesData.ids || []);
-        } else {
-          setHasBasicPlan(false);
+          setInstances(instanceData.ids || []);
         }
       } catch (error: any) {
-        setErrorMessage(error.message || "Erro ao carregar dados.");
+        setErrorMessage(error.message || "Erro ao carregar informações.");
       } finally {
         setIsLoading(false);
       }
     };
 
     fetchSubscriptionsAndInstances();
-  }, [setSubscriptionId]);
+  }, []);
 
-  const handleCreateSubscription = async () => {
+  const handleSubscribe = async () => {
     try {
       setIsLoading(true);
-      setErrorMessage(null);
-
-      if (!selectedProject) {
-        throw new Error("Projeto selecionado não encontrado.");
-      }
-
       const response = await fetch("/api/subscriptions", {
         method: "POST",
-        credentials: "include", // Inclui automaticamente o cookie de sessão
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
           productTierId: "pt-YhJSEGRCYv",
-          projectId: selectedProject,
           serviceId: "s-KgFDwg5vBS",
         }),
       });
 
-      const data = await response.text();
-
+      const data = await response.json();
       if (!response.ok) {
-        throw new Error("Erro ao criar assinatura.");
+        throw new Error(data.message || "Erro ao criar subscrição.");
       }
 
-      setSubscriptionId(data);
-      setHasBasicPlan(true);
-
-      const instancesResponse = await fetch(`/api/instances?subscriptionId=${data}`, {
-        method: "GET",
-        credentials: "include", // Inclui automaticamente o cookie de sessão
-      });
-
-      const instancesData = await instancesResponse.json();
-
-      if (!instancesResponse.ok) {
-        throw new Error(instancesData.message || "Erro ao obter instâncias da nova assinatura.");
-      }
-
-      setExistingInstanceIds(instancesData.ids || []);
+      setActiveFreeSubscription(data);
+      setSubscriptionId(data.id);
+      setInstances([]);
     } catch (error: any) {
-      setErrorMessage(error.message || "Erro ao criar assinatura.");
+      setErrorMessage(error.message || "Erro ao criar subscrição.");
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleInstanceSelection = async (instanceId: string) => {
-    setSelectedInstanceId(instanceId);
-    setInstancePassword(""); // Resetar a senha
-    setInstanceUsername(null); // Resetar o nome de usuário
+  const handleSelectInstance = async (e: React.FormEvent) => {
+    e.preventDefault(); // Impede o comportamento padrão do formulário
+
+    if (!selectedInstance || !instancePassword) {
+      setErrorMessage("Por favor, selecione uma instância e insira a senha.");
+      return;
+    }
 
     try {
+      setIsLoading(true);
+
       const instanceDetailsResponse = await fetch(
-        `/api/instances?subscriptionId=${subscriptionId}&instanceId=${instanceId}`,
+        `/api/instances?subscriptionId=${activeFreeSubscription.id}&instanceId=${selectedInstance}`,
         {
           method: "GET",
           credentials: "include",
@@ -147,133 +133,153 @@ export default function PlanSelectionComponent({ onBack }: PlanSelectionComponen
         throw new Error(instanceDetails.message || "Erro ao obter detalhes da instância.");
       }
 
-      setInstanceUsername(instanceDetails.createdByUserName || ""); // Atualizar o nome de usuário
-    } catch (error: any) {
-      setErrorMessage(error.message || "Erro ao selecionar a instância.");
-    }
-  };
+      const instanceUser = instanceDetails.result_params?.falkordbUser;
 
-  const handleSelectInstance = async () => {
-    if (!selectedInstanceId || !instancePassword) {
-      setErrorMessage("Por favor, selecione uma instância e insira a senha.");
-      return;
-    }
+      if (!instanceUser) {
+        throw new Error("Usuário não encontrado nos detalhes da instância.");
+      }
 
-    try {
-      setIsLoading(true);
+      const requestData = {
+        variables: [
+          { key: "FALKORDB_USER", value: instanceUser },
+          { key: "FALKORDB_PASSWORD", value: instancePassword },
+        ],
+        projectId: selectedProject,
+      };
 
-      await handleSaveInstanceCredentials(instanceUsername!, instancePassword);
+      console.log("Dados enviados para salvar as variáveis de ambiente:", requestData);
+
+      const response = await fetch("/api/save-token-to-env", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify(requestData),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Erro ao salvar as variáveis de ambiente.");
+      }
+
+      
     } catch (error: any) {
       setErrorMessage(error.message || "Erro ao selecionar a instância.");
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const handleSaveInstanceCredentials = async (user: string, password: string) => {
-    try {
-      if (!selectedProject) {
-        throw new Error("Projeto selecionado não encontrado.");
-      }
-
-      const saveResponse = await fetch("/api/save-token-to-env", {
-        method: "POST",
-        credentials: "include", // Inclui automaticamente o cookie de sessão
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          variables: [
-            { key: "FALKORDB_USER", value: user },
-            { key: "FALKORDB_PASSWORD", value: password },
-          ],
-          projectId: selectedProject,
-        }),
-      });
-
-      const saveData = await saveResponse.json();
-
-      if (!saveResponse.ok) {
-        throw new Error(saveData.message || "Erro ao salvar as variáveis de ambiente.");
-      }
-
-      setSuccessMessage("Instância criada e configurada com sucesso!");
-      if (next) {
-        router.push(next);
-      }
-    } catch (error: any) {
-      setErrorMessage(error.message || "Erro ao salvar as credenciais.");
+      onFinish(); // Finaliza a instalação
     }
   };
 
   return (
-    <div>
-      <h2 className="text-2xl font-semibold text-center mb-6">Planos</h2>
-      {errorMessage && <p className="text-red-500 mb-4">{errorMessage}</p>}
-      {successMessage && <p className="text-green-500 mb-4">{successMessage}</p>}
+    <MainImageLayout
+      pageTitle="Seleção de Subscrição"
+      orgName="FalkorDB"
+      orgLogoURL="/assets/images/falkor_logo.png"
+    >
+      {isLoading ? (
+        <Box display="flex" justifyContent="center" alignItems="center" height="100%">
+          <CircularProgress />
+        </Box>
+      ) : (
+        <Stack spacing={3}>
+          {errorMessage && (
+            <Typography color="error" textAlign="center">
+              {errorMessage}
+            </Typography>
+          )}
 
-      <div className="space-y-4">
-        <div className="border p-4 rounded">
-          <h2 className="text-xl font-semibold">Plano Básico</h2>
-          {existingInstanceIds.length > 0 && (
-            <>
-              <label htmlFor="existingInstances" className="block font-medium">
-                Instâncias Existentes
-              </label>
-              <select
-                id="existingInstances"
-                className="w-full p-2 border rounded mb-4"
-                value={selectedInstanceId || ""}
-                onChange={(e) => handleInstanceSelection(e.target.value)}
-              >
-                <option value="">Selecione uma instância</option>
-                {existingInstanceIds.map((id) => (
-                  <option key={id} value={id}>
-                    {id}
-                  </option>
-                ))}
-              </select>
-              {selectedInstanceId && instanceUsername && (
-                <>
-                  <p className="text-gray-700">Usuário: {instanceUsername}</p>
-                  <input
+<Card>
+            <CardTitle>FalkorDB Free</CardTitle>
+            <Typography variant="body1" color="#475467" mb={2}>
+              The FalkorDB Free Tier provides a free FalkorDB instance for evaluation purposes.
+              You can deploy, connect, and share the instance with minimal effort and no
+              maintenance.
+            </Typography>
+            {activeFreeSubscription ? (
+              <form onSubmit={handleSelectInstance}>
+                <Select
+                  value={selectedInstance || ""}
+                  onChange={(e) => setSelectedInstance(e.target.value)}
+                  displayEmpty
+                  sx={{ marginBottom: 2 }}
+                >
+                  {instances.length === 0 ? (
+                    <MenuItem disabled value="">
+                      No instances found
+                    </MenuItem>
+                  ) : (
+                    instances.map((id) => (
+                      <MenuItem key={id} value={id}>
+                        {id}
+                      </MenuItem>
+                    ))
+                  )}
+                </Select>
+
+                {/* Renderizar o campo de senha somente se uma instância estiver selecionada */}
+                {selectedInstance && (
+                  <TextField
                     type="password"
-                    className="w-full p-2 border rounded mb-4"
-                    placeholder="Senha da Instância"
+                    placeholder="Enter the instance password"
                     value={instancePassword}
                     onChange={(e) => setInstancePassword(e.target.value)}
+                    fullWidth
+                    sx={{ marginBottom: 2 }}
                   />
-                  <button
-                    onClick={handleSelectInstance}
-                    className="bg-black text-white px-4 py-2 rounded"
-                    disabled={isLoading}
+                )}
+
+                <Stack direction="row" spacing={2}>
+                  <Button
+                    variant="outlined"
+                    onClick={() => onNext(activeFreeSubscription.id)}
+                    disabled={instances.length > 0}
                   >
-                    Continuar com Instância Selecionada
-                  </button>
-                </>
-              )}
-            </>
-          )}
-          {showInstanceForm ? (
-            <InstanceCreationForm
-              subscriptionId={subscriptionId!}
-              selectedProject={selectedProject!}
-              onSuccess={handleSaveInstanceCredentials}
-              onCancel={() => setShowInstanceForm(false)}
-            />
-          ) : (
-            <button
-              onClick={() => setShowInstanceForm(true)}
-              className="bg-black text-white px-4 py-2 rounded mt-4"
-            >
-              Criar Nova Instância
-            </button>
-          )}
-        </div>
-      </div>
-      <button onClick={onBack} className="mt-4">
-        Voltar
-      </button>
-    </div>
-  );
+                    Create Instance
+                  </Button>
+                  <Button
+                    variant="contained"
+                    type="submit"
+                    disabled={!selectedInstance || !instancePassword}
+                  >
+                    Select Instance
+                  </Button>
+                </Stack>
+              </form>
+            ) : (
+              <Button variant="outlined" onClick={handleSubscribe}>
+                Subscribe
+              </Button>
+            )}
+          </Card>
+
+          <Card>
+            <CardTitle>FalkorDB Enterprise</CardTitle>
+            <Typography variant="body1" color="#475467" mb={2}>
+              Contact us for more information: Email: support@falkordb.com Discord:
+              https://discord.com/invite/6M4QwDXn2w Forum:
+              https://github.com/orgs/FalkorDB/discussions
+            </Typography>
+            <Button variant="outlined" disabled>
+              Subscribe
+            </Button>
+          </Card>
+
+          <Card>
+            <CardTitle>FalkorDB Pro</CardTitle>
+            <Typography variant="body1" color="#475467" mb={2}>
+              The FalkorDB Pro Tier provides you with a production-ready FalkorDB deployment.
+              Choose your deployment mode, connect, and share the instance with minimal effort
+              and no maintenance. Pick your machine size, add...
+            </Typography>
+            <Button variant="outlined" disabled>
+              Subscribe
+            </Button>
+          </Card>
+        </Stack>
+      )}
+    </MainImageLayout>
+  );  
 }

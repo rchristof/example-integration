@@ -2,6 +2,10 @@
 
 import { useState, useEffect } from "react";
 import { useAuth } from "../contexts/AuthContext";
+import MainImageLayout from "../components/NonDashboardComponents/Layout/MainImageLayout";
+import Select from "../components/NonDashboardComponents/FormElementsV2/Select";
+import MenuItem from "../components/NonDashboardComponents/FormElementsV2/MenuItem";
+import SubmitButton from "../components/NonDashboardComponents/FormElementsV2/SubmitButton";
 
 interface ProjectSelectionComponentProps {
   onNext: () => void;
@@ -10,18 +14,21 @@ interface ProjectSelectionComponentProps {
 export default function ProjectSelectionComponent({
   onNext,
 }: ProjectSelectionComponentProps) {
-  const { setSelectedProject } = useAuth();
+  const { setSelectedProject } = useAuth(); // Método do contexto
+  console.log("setSelectedProject", setSelectedProject);
   const [projects, setProjects] = useState<any[]>([]);
   const [selectedProject, setSelectedProjectState] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
+  // Obtém o token de sessão para as chamadas de API
   const getSessionToken = () =>
     document.cookie.replace(
       /(?:(?:^|.*;\s*)sessionToken\s*\=\s*([^;]*).*$)|^.*$/,
       "$1"
     );
 
+  // Busca os projetos disponíveis ao carregar o componente
   useEffect(() => {
     const fetchProjects = async () => {
       try {
@@ -36,8 +43,7 @@ export default function ProjectSelectionComponent({
         const data = await response.json();
 
         if (!response.ok) {
-          setErrorMessage(data.message || "Erro ao obter projetos.");
-          return;
+          throw new Error(data.message || "Erro ao obter projetos.");
         }
 
         setProjects(data.projects || []);
@@ -51,52 +57,59 @@ export default function ProjectSelectionComponent({
     fetchProjects();
   }, []);
 
+  // Manipula a navegação para o próximo passo
   const handleNext = () => {
     if (selectedProject) {
-      setSelectedProject(selectedProject);
-      onNext();
+      console.log("Projeto selecionado:", selectedProject);
+      setSelectedProject(selectedProject); // Salva no contexto global
+      onNext(); // Navega para o próximo passo
     } else {
       setErrorMessage("Por favor, selecione um projeto.");
     }
   };
 
   return (
-    <div>
-      <h2 className="text-2xl font-semibold text-center mb-6">
-        Seleção de Projeto
-      </h2>
-      {errorMessage && <p className="text-red-500 mb-4">{errorMessage}</p>}
-      {isLoading ? (
-        <p>Carregando projetos...</p>
-      ) : projects.length > 0 ? (
-        <div className="space-y-4">
-          {projects.map((project) => (
-            <div key={project.id} className="flex items-center">
-              <input
-                type="radio"
-                id={project.id}
-                name="project"
-                value={project.id}
-                checked={selectedProject === project.id}
-                onChange={(e) => setSelectedProjectState(e.target.value)}
-                className="mr-2"
-              />
-              <label htmlFor={project.id} className="cursor-pointer">
+    <MainImageLayout
+      pageTitle="Seleção de Projeto"
+      orgName="FalkorDB"
+      orgLogoURL="/assets/images/falkor_logo.png"
+    >
+      <div>
+        <h2 className="text-2xl font-semibold text-center mb-6">
+          Project Selection
+        </h2>
+        {errorMessage && (
+          <p className="text-red-500 mb-4 text-center">{errorMessage}</p>
+        )}
+        {isLoading ? (
+          <p className="text-center">Loading projects...</p>
+        ) : projects.length > 0 ? (
+          <Select
+            value={selectedProject}
+            onChange={(e) => setSelectedProjectState(e.target.value)}
+            fullWidth
+            displayEmpty
+            renderValue={(selected) =>
+              selected ? projects.find((p) => p.id === selected)?.name : "Selecione um projeto"
+            }
+          >
+            {projects.map((project) => (
+              <MenuItem key={project.id} value={project.id}>
                 {project.name}
-              </label>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <p>Nenhum projeto encontrado.</p>
-      )}
-      <button
-        className="bg-black text-white px-4 py-2 rounded mt-4"
-        onClick={handleNext}
-        disabled={isLoading || !selectedProject}
-      >
-        Próximo
-      </button>
-    </div>
+              </MenuItem>
+            ))}
+          </Select>
+        ) : (
+          <p className="text-center">Nenhum projeto encontrado.</p>
+        )}
+        <SubmitButton
+          onClick={handleNext}
+          disabled={isLoading || !selectedProject}
+          sx={{ marginTop: "24px" }}
+        >
+          Próximo
+        </SubmitButton>
+      </div>
+    </MainImageLayout>
   );
 }

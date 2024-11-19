@@ -1,7 +1,13 @@
-// app/components/InstanceCreationForm.tsx
 "use client";
 
-import { useState } from "react";
+import { useAuth } from "../contexts/AuthContext";
+import { use, useState } from "react";
+import MainImageLayout from "../components/NonDashboardComponents/Layout/MainImageLayout";
+import Select from "@components/NonDashboardComponents/FormElementsV2/Select";
+import MenuItem from "@components/NonDashboardComponents/FormElementsV2/MenuItem";
+import Button from "@components/NonDashboardComponents/Button";
+import TextField from "@components/NonDashboardComponents/FormElementsV2/TextField";
+import { Box, Typography, CircularProgress, Stack } from "@mui/material";
 
 interface InstanceCreationFormProps {
   subscriptionId: string;
@@ -12,12 +18,15 @@ interface InstanceCreationFormProps {
 }
 
 export default function InstanceCreationForm({
-  subscriptionId,
-  selectedProject,
+  // subscriptionId,
+  // selectedProject,
   teamId,
   onSuccess,
   onCancel,
 }: InstanceCreationFormProps) {
+  const selectedProject = useAuth().selectedProject;
+  const subscriptionId = useAuth().subscriptionId;
+  console.log("oioi", useAuth());
   const [instanceName, setInstanceName] = useState<string>("");
   const [instanceUser, setInstanceUser] = useState<string>("");
   const [instancePassword, setInstancePassword] = useState<string>("");
@@ -54,13 +63,6 @@ export default function InstanceCreationForm({
     try {
       if (!selectedProvider || !selectedRegion || !instanceName || !instanceUser || !instancePassword) {
         setErrorMessage("Por favor, preencha todos os campos.");
-        console.error("Campos ausentes:", {
-          selectedProvider,
-          selectedRegion,
-          instanceName,
-          instanceUser,
-          instancePassword,
-        });
         return;
       }
 
@@ -82,8 +84,6 @@ export default function InstanceCreationForm({
         instanceData,
       };
 
-      console.log("Enviando dados da instância:", requestBody);
-
       const response = await fetch("/api/instances", {
         method: "POST",
         headers: {
@@ -96,14 +96,36 @@ export default function InstanceCreationForm({
       const data = await response.json();
 
       if (!response.ok) {
-        console.error("Erro na resposta da API:", data);
         throw new Error(data.message || "Erro ao criar a instância.");
       }
 
-      console.log("Instância criada com sucesso:", data);
+      const variables = [
+        { key: "FALKORDB_USER", value: instanceUser },
+        { key: "FALKORDB_PASSWORD", value: instancePassword },
+      ];
+  
+      const saveVariablesResponse = await fetch("/api/save-token-to-env", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        credentials: "include",
+        body: JSON.stringify({
+          variables,
+          projectId: selectedProject,
+        }),
+      });
+  
+      if (!saveVariablesResponse.ok) {
+        const saveErrorData = await saveVariablesResponse.json();
+        console.error("Erro ao salvar variáveis de ambiente:", saveErrorData);
+        throw new Error(saveErrorData.message || "Erro ao salvar as variáveis de ambiente.");
+      }
+  
+      console.log("Variáveis de ambiente salvas com sucesso.");
+
       onSuccess(instanceUser, instancePassword);
     } catch (error: any) {
-      console.error("Erro ao criar a instância:", error);
       setErrorMessage(error.message || "Erro ao criar a instância.");
     } finally {
       setIsLoading(false);
@@ -113,85 +135,96 @@ export default function InstanceCreationForm({
   const availableRegions = selectedProvider ? regions[selectedProvider] : [];
 
   return (
-    <div className="mt-4">
-      <h3 className="text-lg font-semibold">Criar Nova Instância</h3>
-      {errorMessage && <p className="text-red-500 mt-2">{errorMessage}</p>}
-      <div className="mt-2">
-        <label className="block font-medium">Provedor</label>
-        <select
-          className="w-full p-2 border rounded"
+    <MainImageLayout
+      pageTitle="Criar Instância"
+      orgName="FalkorDB"
+      orgLogoURL="/assets/images/falkor_logo.png"
+    >
+      <Stack spacing={3}>
+        <Typography variant="h5" fontWeight="bold" textAlign="center">
+          Criar Nova Instância
+        </Typography>
+
+        {errorMessage && (
+          <Typography color="error" textAlign="center">
+            {errorMessage}
+          </Typography>
+        )}
+
+        <Select
           value={selectedProvider}
           onChange={(e) => {
             setSelectedProvider(e.target.value);
             setSelectedRegion("");
           }}
+          displayEmpty
+          fullWidth
         >
-          <option value="">Selecione um provedor</option>
+          <MenuItem value="">Select a Cloud Provider</MenuItem>
           {providers.map((provider) => (
-            <option key={provider.id} value={provider.id}>
+            <MenuItem key={provider.id} value={provider.id}>
               {provider.name}
-            </option>
+            </MenuItem>
           ))}
-        </select>
-      </div>
-      <div className="mt-2">
-        <label className="block font-medium">Região</label>
-        <select
-          className="w-full p-2 border rounded"
+        </Select>
+
+        <Select
           value={selectedRegion}
           onChange={(e) => setSelectedRegion(e.target.value)}
+          displayEmpty
+          fullWidth
           disabled={!selectedProvider}
         >
-          <option value="">Selecione uma região</option>
+          <MenuItem value="">Select a Region</MenuItem>
           {availableRegions.map((region) => (
-            <option key={region.id} value={region.id}>
+            <MenuItem key={region.id} value={region.id}>
               {region.name} ({region.id})
-            </option>
+            </MenuItem>
           ))}
-        </select>
-      </div>
-      <div className="mt-2">
-        <label className="block font-medium">Nome da Instância</label>
-        <input
-          type="text"
-          className="w-full p-2 border rounded"
+        </Select>
+
+        <TextField
+          label="Name"
+          InputLabelProps={{ shrink: true }} // Garante que o label seja exibido acima do campo
+          placeholder="Digite o nome da instância"
           value={instanceName}
           onChange={(e) => setInstanceName(e.target.value)}
-          placeholder="Digite o nome da instância"
+          fullWidth
         />
-      </div>
-      <div className="mt-2">
-        <label className="block font-medium">Usuário da Instância</label>
-        <input
-          type="text"
-          className="w-full p-2 border rounded"
+
+        <TextField
+          label="User"
+          InputLabelProps={{ shrink: true }} // Garante que o label seja exibido acima do campo
+          placeholder="Digite o usuário da instância"
           value={instanceUser}
           onChange={(e) => setInstanceUser(e.target.value)}
-          placeholder="Digite o usuário da instância"
+          fullWidth
         />
-      </div>
-      <div className="mt-2">
-        <label className="block font-medium">Senha da Instância</label>
-        <input
+
+        <TextField
+          label="Password"
+          InputLabelProps={{ shrink: true }} // Garante que o label seja exibido acima do campo
+          placeholder="Digite a senha da instância"
           type="password"
-          className="w-full p-2 border rounded"
           value={instancePassword}
           onChange={(e) => setInstancePassword(e.target.value)}
-          placeholder="Digite a senha da instância"
+          fullWidth
         />
-      </div>
-      <div className="mt-4">
-        <button
-          className="bg-black text-white px-4 py-2 rounded"
-          onClick={handleCreateInstance}
-          disabled={isLoading}
-        >
-          {isLoading ? "Criando..." : "Criar Instância"}
-        </button>
-        <button className="ml-2 px-4 py-2 rounded" onClick={onCancel} disabled={isLoading}>
-          Cancelar
-        </button>
-      </div>
-    </div>
+
+        <Stack direction="row" justifyContent="space-between">
+          <Button
+            onClick={handleCreateInstance}
+            isLoading={isLoading}
+            disabled={isLoading}
+            fullWidth
+          >
+            {isLoading ? "Criando..." : "Create Instance"}
+          </Button>
+          <Button variant="outlined" onClick={onCancel} disabled={isLoading} fullWidth>
+            Cancel
+          </Button>
+        </Stack>
+      </Stack>
+    </MainImageLayout>
   );
 }

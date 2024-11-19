@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { use, useState } from "react";
 import { useAuth } from "../contexts/AuthContext";
 import { useFormik } from "formik";
 import * as Yup from "yup";
@@ -18,6 +18,7 @@ interface LoginComponentProps {
 
 export default function LoginComponent({ onNext }: LoginComponentProps) {
   const { setIsAuthenticated } = useAuth();
+  console.log("setIsAuthenticated", useAuth());
   const [isLogin, setIsLogin] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -136,7 +137,7 @@ export default function LoginComponent({ onNext }: LoginComponentProps) {
           {notification}
         </Typography>
       )}
-      <DisplayHeading mt="12px">{isLogin ? "Login na sua conta" : "Crie sua conta"}</DisplayHeading>
+      <DisplayHeading mt="12px">{isLogin ? "Login to your account" : "Get Started Today"}</DisplayHeading>
 
       {errorMessage && (
         <Typography color="error" mb={2}>
@@ -150,7 +151,7 @@ export default function LoginComponent({ onNext }: LoginComponentProps) {
             <FieldLabel required align="left">Email</FieldLabel>
             <TextField
               name="email"
-              placeholder="Digite seu email"
+              placeholder="example@companyemail.com"
               value={values.email}
               onChange={handleChange}
               onBlur={handleBlur}
@@ -162,10 +163,10 @@ export default function LoginComponent({ onNext }: LoginComponentProps) {
           {!isLogin && (
             <>
               <FieldContainer>
-                <FieldLabel required align="left">Nome da Empresa</FieldLabel>
+                <FieldLabel required align="left">Company Name</FieldLabel>
                 <TextField
                   name="companyName"
-                  placeholder="Digite o nome da sua empresa"
+                  placeholder="Enter your company's name"
                   value={values.companyName}
                   onChange={handleChange}
                   onBlur={handleBlur}
@@ -175,10 +176,10 @@ export default function LoginComponent({ onNext }: LoginComponentProps) {
               </FieldContainer>
 
               <FieldContainer>
-                <FieldLabel required align="left">Seu Nome</FieldLabel>
+                <FieldLabel required align="left">Name</FieldLabel>
                 <TextField
                   name="name"
-                  placeholder="Digite seu nome"
+                  placeholder="Enter your full name"
                   value={values.name}
                   onChange={handleChange}
                   onBlur={handleBlur}
@@ -190,10 +191,10 @@ export default function LoginComponent({ onNext }: LoginComponentProps) {
           )}
 
           <FieldContainer>
-            <FieldLabel required align="left">Senha</FieldLabel>
+            <FieldLabel required align="left">Password</FieldLabel>
             <PasswordField
               name="password"
-              placeholder="Digite sua senha"
+              placeholder="Enter your password"
               value={values.password}
               onChange={handleChange}
               onBlur={handleBlur}
@@ -205,7 +206,7 @@ export default function LoginComponent({ onNext }: LoginComponentProps) {
           {isLogin && (
             <Box textAlign="left">
               <Link href="/forgot-password" style={{ color: "#27A376", cursor: "pointer" }}>
-                Esqueceu sua senha?
+              Forgot Password
               </Link>
             </Box>
           )}
@@ -220,9 +221,9 @@ export default function LoginComponent({ onNext }: LoginComponentProps) {
         </SubmitButton>
 
         <Typography mt="16px" fontSize="14px" textAlign="center" color="#A0AEC0">
-          {isLogin ? "Novo por aqui?" : "Já tem uma conta?"}{" "}
+          {isLogin ? "You’re new in here?" : "Already have an account?"}{" "}
           <Link href="#" onClick={toggleIsLogin} style={{ color: "#27A376", cursor: "pointer" }}>
-            {isLogin ? "Crie uma conta" : "Login"}
+            {isLogin ? "Create Account" : "Login here"}
           </Link>
         </Typography>
       </Stack>

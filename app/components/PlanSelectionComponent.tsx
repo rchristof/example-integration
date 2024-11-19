@@ -22,7 +22,6 @@ export default function PlanSelectionComponent({
 }: PlanSelectionComponentProps) {
   const { selectedProject } = useAuth();
   const { setSubscriptionId } = useAuth();
-  console.log("selectedProject", useAuth());
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [subscriptions, setSubscriptions] = useState<any[]>([]);
@@ -53,6 +52,8 @@ export default function PlanSelectionComponent({
         setActiveFreeSubscription(freeSubscription);
 
         if (freeSubscription) {
+          setSubscriptionId(freeSubscription.id);
+          console.log("freeSubscription.id mudou", freeSubscription.id);
           const instanceResponse = await fetch(
             `/api/instances?subscriptionId=${freeSubscription.id}`,
             {
@@ -99,7 +100,8 @@ export default function PlanSelectionComponent({
       }
 
       setActiveFreeSubscription(data);
-      setSubscriptionId(data.id);
+      setSubscriptionId(data);
+      console.log("data.id mudou", data);
       setInstances([]);
     } catch (error: any) {
       setErrorMessage(error.message || "Erro ao criar subscrição.");

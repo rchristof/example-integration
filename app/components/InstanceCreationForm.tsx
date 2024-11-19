@@ -26,7 +26,7 @@ export default function InstanceCreationForm({
 }: InstanceCreationFormProps) {
   const selectedProject = useAuth().selectedProject;
   const subscriptionId = useAuth().subscriptionId;
-  console.log("oioi", useAuth());
+  console.log("subscriptionId", subscriptionId);
   const [instanceName, setInstanceName] = useState<string>("");
   const [instanceUser, setInstanceUser] = useState<string>("");
   const [instancePassword, setInstancePassword] = useState<string>("");
@@ -136,13 +136,13 @@ export default function InstanceCreationForm({
 
   return (
     <MainImageLayout
-      pageTitle="Criar Instância"
+      pageTitle="Create Instance"
       orgName="FalkorDB"
       orgLogoURL="/assets/images/falkor_logo.png"
     >
       <Stack spacing={3}>
         <Typography variant="h5" fontWeight="bold" textAlign="center">
-          Criar Nova Instância
+          Create new instance
         </Typography>
 
         {errorMessage && (
@@ -178,7 +178,7 @@ export default function InstanceCreationForm({
           <MenuItem value="">Select a Region</MenuItem>
           {availableRegions.map((region) => (
             <MenuItem key={region.id} value={region.id}>
-              {region.name} ({region.id})
+              {region.id}
             </MenuItem>
           ))}
         </Select>
@@ -186,7 +186,7 @@ export default function InstanceCreationForm({
         <TextField
           label="Name"
           InputLabelProps={{ shrink: true }} // Garante que o label seja exibido acima do campo
-          placeholder="Digite o nome da instância"
+          placeholder="Enter instance name"
           value={instanceName}
           onChange={(e) => setInstanceName(e.target.value)}
           fullWidth
@@ -195,7 +195,7 @@ export default function InstanceCreationForm({
         <TextField
           label="User"
           InputLabelProps={{ shrink: true }} // Garante que o label seja exibido acima do campo
-          placeholder="Digite o usuário da instância"
+          placeholder="Enter instance user"
           value={instanceUser}
           onChange={(e) => setInstanceUser(e.target.value)}
           fullWidth
@@ -204,7 +204,7 @@ export default function InstanceCreationForm({
         <TextField
           label="Password"
           InputLabelProps={{ shrink: true }} // Garante que o label seja exibido acima do campo
-          placeholder="Digite a senha da instância"
+          placeholder="Enter instance password"
           type="password"
           value={instancePassword}
           onChange={(e) => setInstancePassword(e.target.value)}
@@ -218,7 +218,7 @@ export default function InstanceCreationForm({
             disabled={isLoading}
             fullWidth
           >
-            {isLoading ? "Criando..." : "Create Instance"}
+            {isLoading ? "Creating..." : "Create Instance"}
           </Button>
           <Button variant="outlined" onClick={onCancel} disabled={isLoading} fullWidth>
             Cancel

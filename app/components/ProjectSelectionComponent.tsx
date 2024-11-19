@@ -15,7 +15,6 @@ export default function ProjectSelectionComponent({
   onNext,
 }: ProjectSelectionComponentProps) {
   const { setSelectedProject } = useAuth(); // Método do contexto
-  console.log("setSelectedProject", setSelectedProject);
   const [projects, setProjects] = useState<any[]>([]);
   const [selectedProject, setSelectedProjectState] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -90,7 +89,7 @@ export default function ProjectSelectionComponent({
             fullWidth
             displayEmpty
             renderValue={(selected) =>
-              selected ? projects.find((p) => p.id === selected)?.name : "Selecione um projeto"
+              selected ? projects.find((p) => p.id === selected)?.name : "Select a project"
             }
           >
             {projects.map((project) => (
@@ -100,14 +99,14 @@ export default function ProjectSelectionComponent({
             ))}
           </Select>
         ) : (
-          <p className="text-center">Nenhum projeto encontrado.</p>
+          <p className="text-center">No projects found</p>
         )}
         <SubmitButton
           onClick={handleNext}
           disabled={isLoading || !selectedProject}
           sx={{ marginTop: "24px" }}
         >
-          Próximo
+          Next
         </SubmitButton>
       </div>
     </MainImageLayout>

@@ -18,7 +18,6 @@ interface LoginComponentProps {
 
 export default function LoginComponent({ onNext }: LoginComponentProps) {
   const { setIsAuthenticated } = useAuth();
-  console.log("setIsAuthenticated", useAuth());
   const [isLogin, setIsLogin] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);

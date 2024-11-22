@@ -77,7 +77,7 @@ export default function LoginComponent({ onNext }: LoginComponentProps) {
       if (response.ok) {
         setIsLogin(true);
         setNotification(
-          "Cadastro realizado com sucesso! Verifique seu email para confirmar sua conta."
+          "Registration successful! Check your email to confirm your account."
         );
       } else {
         setErrorMessage(data.message || "Erro ao criar conta.");

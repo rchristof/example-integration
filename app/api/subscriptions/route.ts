@@ -1,3 +1,4 @@
+// app/api/subscriptions/route.ts
 import { NextResponse } from "next/server";
 import redis from "@/utils/redis";
 

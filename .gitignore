@@ -34,3 +34,5 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+falkordb-firebase-adminsdk-k7l69-dfbe50f748.json

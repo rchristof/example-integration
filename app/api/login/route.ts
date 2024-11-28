@@ -1,6 +1,5 @@
 // app/api/login/route.ts
 import { NextResponse } from "next/server";
-import redis from "@/utils/redis";
 
 export const POST = async (request: Request) => {
   try {
@@ -32,25 +31,8 @@ export const POST = async (request: Request) => {
       return NextResponse.json({ message: "Token de autenticação não recebido." }, { status: 500 });
     }
 
-    // Recuperar o token de sessão do cookie
-    const sessionToken = request.headers.get("cookie")?.split("=")?.[1];
-    if (!sessionToken) {
-      return NextResponse.json({ message: "Sessão ausente." }, { status: 401 });
-    }
-
-    const existingSession = await redis.get(sessionToken);
-    if (!existingSession) {
-      return NextResponse.json({ message: "Sessão inválida ou expirada." }, { status: 401 });
-    }
-
-    // Atualizar a sessão com o jwtToken
-    const sessionData = JSON.parse(existingSession);
-    sessionData.jwtToken = jwtToken;
-
-    const ttl = 60 * 60 * 24; // 1 dia
-    await redis.set(sessionToken, JSON.stringify(sessionData), "EX", ttl);
-
-    return NextResponse.json({ success: true });
+    // Retorna o token diretamente para o cliente
+    return NextResponse.json({ jwtToken, success: true });
   } catch (error) {
     return NextResponse.json({ message: "Erro interno do servidor." }, { status: 500 });
   }

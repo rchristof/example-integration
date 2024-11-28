@@ -110,6 +110,7 @@ export default function LoginComponent({ onNext }: LoginComponentProps) {
       const data = await response.json();
 
       if (response.ok) {
+        sessionStorage.setItem("jwtToken", data.jwtToken);
         setIsAuthenticated(true);
         onNext();
       } else {

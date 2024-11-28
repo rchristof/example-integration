@@ -1,7 +1,8 @@
+// app/page.tsx
 "use client";
 
 import { useState } from "react";
-import { AuthProvider } from "../contexts/AuthContext";
+import { AuthProvider, useAuth } from "../contexts/AuthContext";
 import CallbackHandler from "../components/CallbackHandler";
 import LoginComponent from "../components/LoginComponent";
 import ProjectSelectionComponent from "../components/ProjectSelectionComponent";
@@ -14,7 +15,7 @@ import FalkorLogo from "../../public/assets/images/falkor_logo.png";
 
 export default function Page() {
   const [step, setStep] = useState(1);
-  const [selectedProject, setSelectedProject] = useState<string>(""); // Passado diretamente
+  const { setSelectedProject, setTeamId, teamId, selectedProject } = useAuth(); // Use valores do contexto
   const [subscriptionId, setSubscriptionId] = useState<string>("");
 
   const goToNextStep = () => setStep((prev) => prev + 1);
@@ -40,13 +41,19 @@ export default function Page() {
             orgName="FalkorDB"
             orgLogoURL={FalkorLogo.src}
           >
-            <LoginComponent onNext={goToNextStep} />
+            <LoginComponent
+              onNext={(teamIdFromLogin) => {
+                setTeamId(teamIdFromLogin); // Atualiza o teamId ao autenticar
+                goToNextStep();
+              }}
+            />
           </MainImageLayout>
         )}
         {step === 2 && (
           <ProjectSelectionComponent
             onNext={goToNextStep}
             onBack={goToPreviousStep}
+            teamId={teamId} // Propaga o teamId
             setSelectedProject={setSelectedProject}
           />
         )}

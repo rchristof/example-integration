@@ -1,3 +1,4 @@
+  // app/components/PlanSelectionComponent.tsx
 "use client";
 import { useAuth } from "../contexts/AuthContext";
 import { useEffect, useState } from "react";
@@ -20,8 +21,7 @@ export default function PlanSelectionComponent({
   onBack,
   onFinish,
 }: PlanSelectionComponentProps) {
-  const { selectedProject } = useAuth();
-  const { setSubscriptionId } = useAuth();
+  const { selectedProject, setSubscriptionId } = useAuth();
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [subscriptions, setSubscriptions] = useState<any[]>([]);
@@ -30,14 +30,26 @@ export default function PlanSelectionComponent({
   const [instancePassword, setInstancePassword] = useState<string>("");
   const [activeFreeSubscription, setActiveFreeSubscription] = useState<any | null>(null);
 
+  // Função para buscar subscrições e instâncias
   useEffect(() => {
     const fetchSubscriptionsAndInstances = async () => {
       try {
         setIsLoading(true);
+
+        // Recupera o jwtToken do sessionStorage
+        const jwtToken = sessionStorage.getItem("jwtToken");
+        if (!jwtToken) {
+          throw new Error("Token JWT ausente. Certifique-se de que está logado.");
+        }
+
+        // Busca as subscrições
         const subscriptionResponse = await fetch("/api/subscriptions", {
           method: "GET",
-          credentials: "include",
+          headers: {
+            Authorization: `Bearer ${jwtToken}`, // Envia o jwtToken no cabeçalho
+          },
         });
+
         const subscriptionData = await subscriptionResponse.json();
 
         if (!subscriptionResponse.ok) {
@@ -51,16 +63,19 @@ export default function PlanSelectionComponent({
         );
         setActiveFreeSubscription(freeSubscription);
 
+        // Se houver uma subscrição gratuita ativa, busca as instâncias associadas
         if (freeSubscription) {
           setSubscriptionId(freeSubscription.id);
-          console.log("freeSubscription.id mudou", freeSubscription.id);
           const instanceResponse = await fetch(
             `/api/instances?subscriptionId=${freeSubscription.id}`,
             {
               method: "GET",
-              credentials: "include",
+              headers: {
+                Authorization: `Bearer ${jwtToken}`,
+              },
             }
           );
+
           const instanceData = await instanceResponse.json();
 
           if (!instanceResponse.ok) {
@@ -77,15 +92,22 @@ export default function PlanSelectionComponent({
     };
 
     fetchSubscriptionsAndInstances();
-  }, []);
+  }, [setSubscriptionId]);
 
+  // Função para criar uma nova subscrição
   const handleSubscribe = async () => {
     try {
       setIsLoading(true);
+
+      const jwtToken = sessionStorage.getItem("jwtToken");
+      if (!jwtToken) {
+        throw new Error("Token JWT ausente.");
+      }
+
       const response = await fetch("/api/subscriptions", {
         method: "POST",
-        credentials: "include",
         headers: {
+          Authorization: `Bearer ${jwtToken}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
@@ -100,8 +122,7 @@ export default function PlanSelectionComponent({
       }
 
       setActiveFreeSubscription(data);
-      setSubscriptionId(data);
-      console.log("data.id mudou", data);
+      setSubscriptionId(data.id);
       setInstances([]);
     } catch (error: any) {
       setErrorMessage(error.message || "Erro ao criar subscrição.");
@@ -110,8 +131,9 @@ export default function PlanSelectionComponent({
     }
   };
 
+  // Função para selecionar uma instância
   const handleSelectInstance = async (e: React.FormEvent) => {
-    e.preventDefault(); // Impede o comportamento padrão do formulário
+    e.preventDefault();
 
     if (!selectedInstance || !instancePassword) {
       setErrorMessage("Por favor, selecione uma instância e insira a senha.");
@@ -121,11 +143,18 @@ export default function PlanSelectionComponent({
     try {
       setIsLoading(true);
 
+      const jwtToken = sessionStorage.getItem("jwtToken");
+      if (!jwtToken) {
+        throw new Error("Token JWT ausente.");
+      }
+
       const instanceDetailsResponse = await fetch(
         `/api/instances?subscriptionId=${activeFreeSubscription.id}&instanceId=${selectedInstance}`,
         {
           method: "GET",
-          credentials: "include",
+          headers: {
+            Authorization: `Bearer ${jwtToken}`,
+          },
         }
       );
 
@@ -149,14 +178,11 @@ export default function PlanSelectionComponent({
         projectId: selectedProject,
       };
 
-      console.log("Dados enviados para salvar as variáveis de ambiente:", requestData);
-
       const response = await fetch("/api/save-token-to-env", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        credentials: "include",
         body: JSON.stringify(requestData),
       });
 
@@ -165,8 +191,6 @@ export default function PlanSelectionComponent({
       if (!response.ok) {
         throw new Error(data.message || "Erro ao salvar as variáveis de ambiente.");
       }
-
-      
     } catch (error: any) {
       setErrorMessage(error.message || "Erro ao selecionar a instância.");
     } finally {
@@ -192,13 +216,10 @@ export default function PlanSelectionComponent({
               {errorMessage}
             </Typography>
           )}
-
-<Card>
+          <Card>
             <CardTitle>FalkorDB Free</CardTitle>
             <Typography variant="body1" color="#475467" mb={2}>
               The FalkorDB Free Tier provides a free FalkorDB instance for evaluation purposes.
-              You can deploy, connect, and share the instance with minimal effort and no
-              maintenance.
             </Typography>
             {activeFreeSubscription ? (
               <form onSubmit={handleSelectInstance}>
@@ -220,8 +241,6 @@ export default function PlanSelectionComponent({
                     ))
                   )}
                 </Select>
-
-                {/* Renderizar o campo de senha somente se uma instância estiver selecionada */}
                 {selectedInstance && (
                   <TextField
                     type="password"
@@ -232,7 +251,6 @@ export default function PlanSelectionComponent({
                     sx={{ marginBottom: 2 }}
                   />
                 )}
-
                 <Stack direction="row" spacing={2}>
                   <Button
                     variant="outlined"
@@ -256,25 +274,19 @@ export default function PlanSelectionComponent({
               </Button>
             )}
           </Card>
-
           <Card>
             <CardTitle>FalkorDB Enterprise</CardTitle>
             <Typography variant="body1" color="#475467" mb={2}>
-              Contact us for more information: Email: support@falkordb.com Discord:
-              https://discord.com/invite/6M4QwDXn2w Forum:
-              https://github.com/orgs/FalkorDB/discussions
+              Contact us for more information.
             </Typography>
             <Button variant="outlined" disabled>
               Subscribe
             </Button>
           </Card>
-
           <Card>
             <CardTitle>FalkorDB Pro</CardTitle>
             <Typography variant="body1" color="#475467" mb={2}>
-              The FalkorDB Pro Tier provides you with a production-ready FalkorDB deployment.
-              Choose your deployment mode, connect, and share the instance with minimal effort
-              and no maintenance. Pick your machine size, add...
+              The FalkorDB Pro Tier provides a production-ready FalkorDB deployment.
             </Typography>
             <Button variant="outlined" disabled>
               Subscribe
@@ -283,5 +295,6 @@ export default function PlanSelectionComponent({
         </Stack>
       )}
     </MainImageLayout>
-  );  
+  );
 }
+

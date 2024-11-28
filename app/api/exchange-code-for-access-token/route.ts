@@ -1,7 +1,5 @@
 // app/api/exchange-code-for-access-token/route.ts
 import { NextResponse } from "next/server";
-import redis from "@/utils/redis";
-import { generateSessionToken } from "@/utils/session";
 import qs from "querystring";
 
 export const POST = async (request: Request) => {
@@ -9,7 +7,7 @@ export const POST = async (request: Request) => {
     const { code } = await request.json();
 
     if (!code) {
-      return NextResponse.json({ message: "Código ausente." }, { status: 400 });
+      return NextResponse.json({ message: "Código de autorização ausente." }, { status: 400 });
     }
 
     const clientId = process.env.CLIENT_ID;
@@ -44,27 +42,16 @@ export const POST = async (request: Request) => {
 
     const { access_token: accessToken, team_id: teamId } = body;
 
-    // Gerar token de sessão e salvar informações no Redis
-    const sessionToken = generateSessionToken();
-    const ttl = 60 * 60 * 24; // 1 dia
-    await redis.set(
-      sessionToken,
-      JSON.stringify({ accessToken, teamId }),
-      "EX",
-      ttl
-    );
-
-    // Salvar o token de sessão no cookie
-    const responseWithCookie = NextResponse.json({ success: true, teamId });
-    responseWithCookie.cookies.set("sessionToken", sessionToken, {
-      httpOnly: true,
-      secure: true,
-      maxAge: ttl,
-      sameSite: "strict",
+    // Retornar accessToken e teamId, mas não salvar ainda
+    return NextResponse.json({
+      success: true,
+      message: "Token gerado com sucesso.",
+      accessToken,
+      teamId,
     });
-
-    return responseWithCookie;
   } catch (error) {
+    console.error("Erro ao trocar código por token:", error);
     return NextResponse.json({ message: "Erro interno do servidor." }, { status: 500 });
   }
 };
+

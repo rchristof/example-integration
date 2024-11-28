@@ -1,23 +1,15 @@
 // app/api/instances/route.ts
 import { NextResponse } from "next/server";
-import redis from "@/utils/redis";
 
-const BASE_API_URL = "https://api.omnistrate.cloud/2022-09-01-00/resource-instance/sp-JvkxkPhinN/falkordb/v1/prod/falkordb-free-customer-hosted/falkordb-free-falkordb-customer-hosted-model-omnistrate-multi-tenancy/free";
+const BASE_API_URL =
+  "https://api.omnistrate.cloud/2022-09-01-00/resource-instance/sp-JvkxkPhinN/falkordb/v1/prod/falkordb-free-customer-hosted/falkordb-free-falkordb-customer-hosted-model-omnistrate-multi-tenancy/free";
 
-export async function GET(request: Request) {
+export const GET = async (request: Request) => {
   try {
-    // Recuperar o token de sessão do cookie
-    const sessionToken = request.headers.get("cookie")?.split("=")?.[1];
-    if (!sessionToken) {
-      return NextResponse.json({ message: "Sessão ausente." }, { status: 401 });
+    const jwtToken = request.headers.get("Authorization")?.replace("Bearer ", "");
+    if (!jwtToken) {
+      return NextResponse.json({ message: "Token de autenticação ausente." }, { status: 401 });
     }
-
-    const sessionData = await redis.get(sessionToken);
-    if (!sessionData) {
-      return NextResponse.json({ message: "Sessão inválida ou expirada." }, { status: 401 });
-    }
-
-    const { jwtToken } = JSON.parse(sessionData);
 
     const { searchParams } = new URL(request.url);
     const subscriptionId = searchParams.get("subscriptionId");
@@ -45,26 +37,20 @@ export async function GET(request: Request) {
       return NextResponse.json(data, { status: response.status });
     }
 
-    return NextResponse.json(data, { status: 200 });
+    return NextResponse.json({ ids: data.ids }, { status: 200 });
   } catch (error) {
+    console.error("Erro ao buscar instâncias:", error);
     return NextResponse.json({ message: "Erro interno do servidor." }, { status: 500 });
   }
-}
+};
 
-export async function POST(request: Request) {
+export const POST = async (request: Request) => {
   try {
-    // Recuperar o token de sessão do cookie
-    const sessionToken = request.headers.get("cookie")?.split("=")?.[1];
-    if (!sessionToken) {
-      return NextResponse.json({ message: "Sessão ausente." }, { status: 401 });
+    const jwtToken = request.headers.get("Authorization")?.replace("Bearer ", "");
+    if (!jwtToken) {
+      return NextResponse.json({ message: "Token de autenticação ausente." }, { status: 401 });
     }
 
-    const sessionData = await redis.get(sessionToken);
-    if (!sessionData) {
-      return NextResponse.json({ message: "Sessão inválida ou expirada." }, { status: 401 });
-    }
-
-    const { jwtToken } = JSON.parse(sessionData);
     const { subscriptionId, instanceData } = await request.json();
 
     if (!subscriptionId || !instanceData) {
@@ -88,6 +74,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json(data, { status: 200 });
   } catch (error) {
+    console.error("Erro ao criar instância:", error);
     return NextResponse.json({ message: "Erro interno do servidor." }, { status: 500 });
   }
-}
+};

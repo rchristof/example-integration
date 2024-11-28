@@ -1,11 +1,14 @@
+// app/components/CallbackHandler.tsx
 "use client";
 
 import { useEffect } from "react";
 import { useSearchParams } from "next/navigation";
+import { useAuth } from "../contexts/AuthContext";
 
 export default function CallbackHandler() {
   const searchParams = useSearchParams();
   const code = searchParams?.get("code");
+  const { setTeamId } = useAuth(); // Atualiza o teamId no contexto
 
   useEffect(() => {
     const handleAuthentication = async () => {
@@ -18,21 +21,32 @@ export default function CallbackHandler() {
         const response = await fetch("/api/exchange-code-for-access-token", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ code }),
+          body: JSON.stringify({ code }), // Apenas o código é enviado
         });
 
         if (!response.ok) {
           throw new Error("Erro ao trocar código por token de acesso.");
         }
 
-        console.log("Autenticação bem-sucedida com a API.");
+        const data = await response.json();
+        console.log("Autenticação bem-sucedida com a API:", data);
+
+        // Armazenar o accessToken no sessionStorage
+        if (data.accessToken) {
+          sessionStorage.setItem("access_token", data.accessToken);
+        }
+
+        // Atualizar o teamId no contexto
+        if (data.teamId) {
+          setTeamId(data.teamId);
+        }
       } catch (error) {
         console.error("Erro durante a autenticação:", error);
       }
     };
 
     handleAuthentication();
-  }, [code]);
+  }, [code, setTeamId]);
 
   return null;
 }

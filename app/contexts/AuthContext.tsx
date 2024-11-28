@@ -1,3 +1,4 @@
+// app/contexts/AuthContext.tsx
 "use client";
 
 import { createContext, useContext, useState, ReactNode } from "react";
@@ -9,6 +10,8 @@ interface AuthContextProps {
   setSelectedProject: (value: string | null) => void;
   subscriptionId: string | null;
   setSubscriptionId: (value: string | null) => void;
+  teamId: string | null; // TeamId já configurado para suporte
+  setTeamId: (value: string | null) => void; // Função para atualizar o teamId
 }
 
 const AuthContext = createContext<AuthContextProps | undefined>(undefined);
@@ -17,6 +20,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [selectedProject, setSelectedProject] = useState<string | null>(null);
   const [subscriptionId, setSubscriptionId] = useState<string | null>(null);
+  const [teamId, setTeamId] = useState<string | null>(null);
 
   return (
     <AuthContext.Provider
@@ -27,6 +31,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSelectedProject,
         subscriptionId,
         setSubscriptionId,
+        teamId, // TeamId suportado no contexto
+        setTeamId,
       }}
     >
       {children}

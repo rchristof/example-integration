@@ -35,7 +35,7 @@ const MainImageLayout = ({
           padding: "20px",
         }}
       >
-        {/* Caixa Branca */}
+        
         <Box
           sx={{
             maxWidth: contentMaxWidth,
@@ -51,16 +51,13 @@ const MainImageLayout = ({
             gap: "16px",
           }}
         >
-          {/* Logo Centralizado */}
           {orgLogoURL && (
-            <Box mb={1}> {/* Reduzido o espaçamento entre logo e o título */}
+            <Box mb={1}>
               <Logo src={orgLogoURL} alt={orgName} />
             </Box>
           )}
           {children}
         </Box>
-
-        {/* Footer Fora da Caixa Branca */}
         <Footer orgName={orgName} />
       </Box>
     </>

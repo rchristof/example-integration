@@ -148,7 +148,7 @@ export default function LoginComponent({ onNext }: LoginComponentProps) {
       <Stack component="form" gap="24px" mt="28px" onSubmit={handleSubmit}>
         <Stack gap="20px">
           <FieldContainer>
-            <FieldLabel required align="left">Email</FieldLabel>
+            <FieldLabel required>Email</FieldLabel>
             <TextField
               name="email"
               placeholder="example@companyemail.com"
@@ -163,7 +163,7 @@ export default function LoginComponent({ onNext }: LoginComponentProps) {
           {!isLogin && (
             <>
               <FieldContainer>
-                <FieldLabel required align="left">Company Name</FieldLabel>
+                <FieldLabel required>Company Name</FieldLabel>
                 <TextField
                   name="companyName"
                   placeholder="Enter your company's name"
@@ -176,7 +176,7 @@ export default function LoginComponent({ onNext }: LoginComponentProps) {
               </FieldContainer>
 
               <FieldContainer>
-                <FieldLabel required align="left">Name</FieldLabel>
+                <FieldLabel required>Name</FieldLabel>
                 <TextField
                   name="name"
                   placeholder="Enter your full name"
@@ -191,7 +191,7 @@ export default function LoginComponent({ onNext }: LoginComponentProps) {
           )}
 
           <FieldContainer>
-            <FieldLabel required align="left">Password</FieldLabel>
+            <FieldLabel required>Password</FieldLabel>
             <PasswordField
               name="password"
               placeholder="Enter your password"

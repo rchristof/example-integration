@@ -1,4 +1,3 @@
-  // app/components/PlanSelectionComponent.tsx
 "use client";
 import { useAuth } from "../contexts/AuthContext";
 import { useEffect, useState } from "react";
@@ -27,26 +26,23 @@ export default function PlanSelectionComponent({
   const [subscriptions, setSubscriptions] = useState<any[]>([]);
   const [instances, setInstances] = useState<any[]>([]);
   const [selectedInstance, setSelectedInstance] = useState<string | null>(null);
-  const [instancePassword, setInstancePassword] = useState<string>("");
   const [activeFreeSubscription, setActiveFreeSubscription] = useState<any | null>(null);
 
-  // Função para buscar subscrições e instâncias
+  // Fetch subscriptions and instances
   useEffect(() => {
     const fetchSubscriptionsAndInstances = async () => {
       try {
         setIsLoading(true);
 
-        // Recupera o jwtToken do sessionStorage
         const jwtToken = sessionStorage.getItem("jwtToken");
         if (!jwtToken) {
           throw new Error("Token JWT ausente. Certifique-se de que está logado.");
         }
 
-        // Busca as subscrições
         const subscriptionResponse = await fetch("/api/subscriptions", {
           method: "GET",
           headers: {
-            Authorization: `Bearer ${jwtToken}`, // Envia o jwtToken no cabeçalho
+            Authorization: `Bearer ${jwtToken}`,
           },
         });
 
@@ -63,9 +59,9 @@ export default function PlanSelectionComponent({
         );
         setActiveFreeSubscription(freeSubscription);
 
-        // Se houver uma subscrição gratuita ativa, busca as instâncias associadas
         if (freeSubscription) {
           setSubscriptionId(freeSubscription.id);
+
           const instanceResponse = await fetch(
             `/api/instances?subscriptionId=${freeSubscription.id}`,
             {
@@ -94,7 +90,7 @@ export default function PlanSelectionComponent({
     fetchSubscriptionsAndInstances();
   }, [setSubscriptionId]);
 
-  // Função para criar uma nova subscrição
+  // Subscribe to a new plan
   const handleSubscribe = async () => {
     try {
       setIsLoading(true);
@@ -131,71 +127,47 @@ export default function PlanSelectionComponent({
     }
   };
 
-  // Função para selecionar uma instância
+  // Handle instance selection and save data in Firebase
   const handleSelectInstance = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!selectedInstance || !instancePassword) {
-      setErrorMessage("Por favor, selecione uma instância e insira a senha.");
+    if (!selectedInstance) {
+      setErrorMessage("Por favor, selecione uma instância.");
       return;
     }
 
     try {
       setIsLoading(true);
-
-      const jwtToken = sessionStorage.getItem("jwtToken");
-      if (!jwtToken) {
-        throw new Error("Token JWT ausente.");
+      const accessToken = sessionStorage.getItem("access_token");
+      if (!accessToken) {
+        throw new Error("Access token ausente.");
       }
 
-      const instanceDetailsResponse = await fetch(
-        `/api/instances?subscriptionId=${activeFreeSubscription.id}&instanceId=${selectedInstance}`,
-        {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${jwtToken}`,
-          },
-        }
-      );
-
-      const instanceDetails = await instanceDetailsResponse.json();
-
-      if (!instanceDetailsResponse.ok) {
-        throw new Error(instanceDetails.message || "Erro ao obter detalhes da instância.");
-      }
-
-      const instanceUser = instanceDetails.result_params?.falkordbUser;
-
-      if (!instanceUser) {
-        throw new Error("Usuário não encontrado nos detalhes da instância.");
-      }
-
-      const requestData = {
-        variables: [
-          { key: "FALKORDB_USER", value: instanceUser },
-          { key: "FALKORDB_PASSWORD", value: instancePassword },
-        ],
-        projectId: selectedProject,
-      };
-
-      const response = await fetch("/api/save-token-to-env", {
+      // Save data to Firebase
+      const saveResponse = await fetch("/api/save-vercel-token", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(requestData),
+        body: JSON.stringify({
+          instanceId: selectedInstance,
+          projectId: selectedProject,
+          subscriptionId: activeFreeSubscription.id,
+          accessToken,
+        }),
       });
 
-      const data = await response.json();
-
-      if (!response.ok) {
-        throw new Error(data.message || "Erro ao salvar as variáveis de ambiente.");
+      if (!saveResponse.ok) {
+        const saveData = await saveResponse.json();
+        throw new Error(saveData.message || "Erro ao salvar informações no Firebase.");
       }
+
+      console.log("Informações salvas com sucesso no Firebase.");
     } catch (error: any) {
       setErrorMessage(error.message || "Erro ao selecionar a instância.");
     } finally {
       setIsLoading(false);
-      onFinish(); // Finaliza a instalação
+      onFinish();
     }
   };
 
@@ -241,29 +213,8 @@ export default function PlanSelectionComponent({
                     ))
                   )}
                 </Select>
-                {selectedInstance && (
-                  <TextField
-                    type="password"
-                    placeholder="Enter the instance password"
-                    value={instancePassword}
-                    onChange={(e) => setInstancePassword(e.target.value)}
-                    fullWidth
-                    sx={{ marginBottom: 2 }}
-                  />
-                )}
                 <Stack direction="row" spacing={2}>
-                  <Button
-                    variant="outlined"
-                    onClick={() => onNext(activeFreeSubscription.id)}
-                    disabled={instances.length > 0}
-                  >
-                    Create Instance
-                  </Button>
-                  <Button
-                    variant="contained"
-                    type="submit"
-                    disabled={!selectedInstance || !instancePassword}
-                  >
+                  <Button variant="contained" type="submit" disabled={!selectedInstance}>
                     Select Instance
                   </Button>
                 </Stack>
@@ -297,4 +248,3 @@ export default function PlanSelectionComponent({
     </MainImageLayout>
   );
 }
-

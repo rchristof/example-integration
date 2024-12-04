@@ -1,18 +1,26 @@
-// app/api/save-vercel-token/route.ts
 import { NextResponse } from "next/server";
 import { db } from "@/utils/firebaseAdmin";
 
 export const POST = async (request: Request) => {
   try {
-    const { teamId, projectId, accessToken } = await request.json();
+    const { instanceId, projectId, accessToken, subscriptionId } = await request.json();
 
-    if (!teamId || !projectId || !accessToken) {
+    // Verificar se todos os parâmetros necessários estão presentes
+    if (!instanceId || !projectId || !accessToken || !subscriptionId) {
       return NextResponse.json({ message: "Parâmetros ausentes." }, { status: 400 });
     }
 
-    const docId = `${teamId}_${projectId}`; // Identificador único
-    const sessionData = { accessToken, teamId, projectId, createdAt: new Date().toISOString() };
+    // Identificador único baseado no instanceId e projectId
+    const docId = `${instanceId}:${projectId}`;
+    const sessionData = {
+      accessToken,
+      instanceId,
+      projectId,
+      subscriptionId, // Salvando subscriptionId
+      createdAt: new Date().toISOString(),
+    };
 
+    // Salvar os dados no Firestore
     await db.collection("vercel_tokens").doc(docId).set(sessionData);
 
     return NextResponse.json({ success: true, message: "Token salvo com sucesso" });

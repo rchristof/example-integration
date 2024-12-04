@@ -4,27 +4,41 @@ import { db } from "@/utils/firebaseAdmin"; // Importa Firestore
 
 export const POST = async (request: Request) => {
   try {
-    const sessionToken = request.headers.get("cookie")?.split("=")?.[1];
-    if (!sessionToken) {
-      return NextResponse.json({ message: "Sessão ausente." }, { status: 401 });
+    const authHeader = request.headers.get("Authorization");
+    let accessToken: string | null = null;
+    let teamId: string | null = null;
+
+    // Lê o corpo da requisição uma única vez
+    const requestBody = await request.json();
+    const { variables, projectId, teamId: bodyTeamId } = requestBody;
+
+    if (!variables || !projectId) {
+      return NextResponse.json({ message: "Parâmetros ausentes." }, { status: 400 });
     }
 
-    const sessionDoc = await db.collection("sessions").doc(sessionToken).get();
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      // Token enviado no cabeçalho
+      accessToken = authHeader.replace("Bearer ", "");
+      teamId = bodyTeamId || null;
+    } else {
+      // Fallback para o token de sessão do cookie
+      const sessionToken = request.headers.get("cookie")?.split("=")?.[1];
+      if (!sessionToken) {
+        return NextResponse.json({ message: "Sessão ausente." }, { status: 401 });
+      }
 
-    if (!sessionDoc.exists) {
-      return NextResponse.json({ message: "Sessão inválida ou expirada." }, { status: 401 });
+      const sessionDoc = await db.collection("sessions").doc(sessionToken).get();
+      if (!sessionDoc.exists) {
+        return NextResponse.json({ message: "Sessão inválida ou expirada." }, { status: 401 });
+      }
+
+      const sessionData = sessionDoc.data();
+      accessToken = sessionData?.accessToken;
+      teamId = sessionData?.teamId || null;
     }
-
-    const { accessToken, teamId } = sessionDoc.data() || {};
 
     if (!accessToken) {
       return NextResponse.json({ message: "Token de acesso ausente." }, { status: 401 });
-    }
-
-    const { variables, projectId } = await request.json();
-
-    if (!variables || !projectId || !teamId) {
-      return NextResponse.json({ message: "Parâmetros ausentes." }, { status: 400 });
     }
 
     const url = teamId
@@ -57,7 +71,7 @@ export const POST = async (request: Request) => {
 
     return NextResponse.json({ success: true });
   } catch (error) {
+    console.error("Erro interno do servidor:", error);
     return NextResponse.json({ message: "Erro interno do servidor." }, { status: 500 });
   }
 };
-

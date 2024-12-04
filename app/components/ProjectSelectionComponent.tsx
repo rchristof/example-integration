@@ -92,7 +92,7 @@ export default function ProjectSelectionComponent({
         console.log("Projeto selecionado:", selectedProject);
         setSelectedProject(selectedProject); // Atualiza o contexto com o projeto selecionado
 
-        await saveAccessToken(selectedProject); // Salva o accessToken no Firebase após seleção do projeto
+        // await saveAccessToken(selectedProject); // Salva o accessToken no Firebase após seleção do projeto
 
         onNext(); // Avança para o próximo passo
       } catch (error) {

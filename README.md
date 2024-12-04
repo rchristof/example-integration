@@ -30,7 +30,7 @@
 - [ ] Create a job to save the hostname and port to vercel env variables, when this data is ready;
 
 ### General Improvements:
-- [ ] Move calls to external APIs to internal API routes in Next.js to protect API keys [5h];
+- [x] Move calls to external APIs to internal API routes in Next.js to protect API keys [5h];
 - [ ] Make a job to update admin credentials, on the server [3h];
 - [ ] Improve error messages (to the user); [2h]
   - [ ] Login;

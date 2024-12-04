@@ -31,6 +31,12 @@ export const POST = async (request: Request) => {
       return NextResponse.json({ message: "Nenhum projeto encontrado para esta instância." }, { status: 404 });
     }
 
+    const apikey = process.env.ADMIN_BEARER;
+
+    if (!apikey) {
+      return NextResponse.json({ message: "Chave de API não encontrada." }, { status: 500 });
+    }
+
     for (const doc of snapshot.docs) {
       const { accessToken, projectId, subscriptionId, teamId } = doc.data();
 
@@ -42,7 +48,7 @@ export const POST = async (request: Request) => {
         {
           method: "GET",
           headers: {
-            Authorization: `Bearer eyJhbGciOiJFZERTQSIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3MzMzODA2NDMsImlhdCI6MTczMzI5NDI0MywiaXNzIjoib21uaXN0cmF0ZS5jb20iLCJsYXN0TG9nb3V0Q291bnRlciI6MTUsInJvbGUiOiJyb290IiwidG9rZW5JRCI6ImUxMzNlZjA3LTMwNTktNGFjNC05NTIwLTE2MGM4MGFkZmI4YSIsInVzZXJJRCI6InVzZXItYzBFM1ZRdTNYRSJ9._G75mYdSv3QWlDgQWFeUkMk4g91ziqkph0cZIfjVd5dGDj0TDvIW61GYIFUF57s9aCnpJ0H0lzMDrO6NMQEbBQ`,
+            Authorization: `Bearer ${apikey}`,
             "Content-Type": "application/json",
           },
         }

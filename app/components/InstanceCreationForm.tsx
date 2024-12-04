@@ -24,8 +24,7 @@ export default function InstanceCreationForm({
   onSuccess,
   onCancel,
 }: InstanceCreationFormProps) {
-  const selectedProject = useAuth().selectedProject;
-  const subscriptionId = useAuth().subscriptionId;
+  const { selectedProject, subscriptionId } = useAuth();
   console.log("subscriptionId", subscriptionId);
   const [instanceName, setInstanceName] = useState<string>("");
   const [instanceUser, setInstanceUser] = useState<string>("");
@@ -84,10 +83,16 @@ export default function InstanceCreationForm({
         instanceData,
       };
 
+      const jwtToken = sessionStorage.getItem("jwtToken");
+        if (!jwtToken) {
+          throw new Error("Token JWT ausente. Certifique-se de que está logado.");
+        }
+
       const response = await fetch("/api/instances", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "Authorization": `Bearer ${jwtToken}`,
         },
         body: JSON.stringify(requestBody),
         credentials: "include",
@@ -103,11 +108,17 @@ export default function InstanceCreationForm({
         { key: "FALKORDB_USER", value: instanceUser },
         { key: "FALKORDB_PASSWORD", value: instancePassword },
       ];
+
+      const accessToken = sessionStorage.getItem("access_token");
+        if (!accessToken) {
+          throw new Error("Token JWT ausente. Certifique-se de que está logado.");
+        }
   
       const saveVariablesResponse = await fetch("/api/save-token-to-env", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          "Authorization": `Bearer ${accessToken}`,
         },
         credentials: "include",
         body: JSON.stringify({

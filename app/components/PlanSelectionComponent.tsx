@@ -1,4 +1,5 @@
 "use client";
+
 import { useAuth } from "../contexts/AuthContext";
 import { useEffect, useState } from "react";
 import MainImageLayout from "../components/NonDashboardComponents/Layout/MainImageLayout";
@@ -6,7 +7,7 @@ import Card, { CardTitle } from "@components/NonDashboardComponents/Card";
 import Button from "@components/NonDashboardComponents/Button";
 import Select from "@components/NonDashboardComponents/FormElementsV2/Select";
 import MenuItem from "@components/NonDashboardComponents/FormElementsV2/MenuItem";
-import { Box, Typography, Stack, CircularProgress, TextField } from "@mui/material";
+import { Box, Typography, Stack, CircularProgress } from "@mui/material";
 
 interface PlanSelectionComponentProps {
   onNext: (subscriptionId?: string) => void;
@@ -28,7 +29,6 @@ export default function PlanSelectionComponent({
   const [selectedInstance, setSelectedInstance] = useState<string | null>(null);
   const [activeFreeSubscription, setActiveFreeSubscription] = useState<any | null>(null);
 
-  // Fetch subscriptions and instances
   useEffect(() => {
     const fetchSubscriptionsAndInstances = async () => {
       try {
@@ -94,12 +94,12 @@ export default function PlanSelectionComponent({
   const handleSubscribe = async () => {
     try {
       setIsLoading(true);
-
+  
       const jwtToken = sessionStorage.getItem("jwtToken");
       if (!jwtToken) {
         throw new Error("Token JWT ausente.");
       }
-
+  
       const response = await fetch("/api/subscriptions", {
         method: "POST",
         headers: {
@@ -111,14 +111,17 @@ export default function PlanSelectionComponent({
           serviceId: "s-KgFDwg5vBS",
         }),
       });
-
-      const data = await response.json();
+  
       if (!response.ok) {
-        throw new Error(data.message || "Erro ao criar subscrição.");
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Erro ao criar subscrição.");
       }
-
-      setActiveFreeSubscription(data);
-      setSubscriptionId(data.id);
+  
+      let subscriptionId = await response.text(); // Lê a resposta como texto
+      subscriptionId = subscriptionId.replace(/^"|"$/g, ""); // Remove as aspas no início e no final
+  
+      setActiveFreeSubscription({ id: subscriptionId });
+      setSubscriptionId(subscriptionId);
       setInstances([]);
     } catch (error: any) {
       setErrorMessage(error.message || "Erro ao criar subscrição.");
@@ -126,6 +129,7 @@ export default function PlanSelectionComponent({
       setIsLoading(false);
     }
   };
+   
 
   // Handle instance selection and save data in Firebase
   const handleSelectInstance = async (e: React.FormEvent) => {
@@ -200,6 +204,7 @@ export default function PlanSelectionComponent({
                   onChange={(e) => setSelectedInstance(e.target.value)}
                   displayEmpty
                   sx={{ marginBottom: 2 }}
+                  disabled={instances.length === 0} // Desativa caso não existam instâncias
                 >
                   {instances.length === 0 ? (
                     <MenuItem disabled value="">
@@ -214,8 +219,19 @@ export default function PlanSelectionComponent({
                   )}
                 </Select>
                 <Stack direction="row" spacing={2}>
-                  <Button variant="contained" type="submit" disabled={!selectedInstance}>
+                  <Button
+                    variant="contained"
+                    type="submit"
+                    disabled={!selectedInstance}
+                  >
                     Select Instance
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    onClick={onNext}
+                    disabled={instances.length > 0} // Desativa se já houver instâncias
+                  >
+                    Create Instance
                   </Button>
                 </Stack>
               </form>

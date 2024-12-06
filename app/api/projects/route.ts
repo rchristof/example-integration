@@ -5,7 +5,7 @@ export async function GET(request: Request) {
   try {
     // Recupera o token de acesso enviado no cabeçalho
     const accessToken = request.headers.get("Authorization")?.replace("Bearer ", "");
-    const teamId = request.headers.get("x-team-id"); // Agora também espera receber o `teamId`
+    const teamId = request.headers.get("x-team-id");
 
     if (!accessToken || !teamId) {
       return NextResponse.json({ message: "Token de acesso ou TeamId ausente." }, { status: 401 });

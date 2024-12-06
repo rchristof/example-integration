@@ -10,8 +10,8 @@ interface AuthContextProps {
   setSelectedProject: (value: string | null) => void;
   subscriptionId: string | null;
   setSubscriptionId: (value: string | null) => void;
-  teamId: string | null; // TeamId já configurado para suporte
-  setTeamId: (value: string | null) => void; // Função para atualizar o teamId
+  teamId: string | null;
+  setTeamId: (value: string | null) => void;
 }
 
 const AuthContext = createContext<AuthContextProps | undefined>(undefined);
@@ -31,7 +31,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSelectedProject,
         subscriptionId,
         setSubscriptionId,
-        teamId, // TeamId suportado no contexto
+        teamId,
         setTeamId,
       }}
     >

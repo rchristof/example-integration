@@ -6,7 +6,6 @@ export const POST = async (request: Request) => {
   try {
     const authHeader = request.headers.get("Authorization");
 
-    // Verifica o token de autenticação
     if (!authHeader || authHeader !== "Bearer token-secreto") {
       return NextResponse.json({ message: "Não autorizado" }, { status: 401 });
     }
@@ -20,7 +19,6 @@ export const POST = async (request: Request) => {
 
     console.log(`Iniciando automação para a instância: ${instanceId}`);
 
-    // Busca documentos no Firestore que comecem com o ID da instância
     const snapshot = await db
       .collection("vercel_tokens")
       .where("__name__", ">=", `${instanceId}:`)
@@ -42,9 +40,8 @@ export const POST = async (request: Request) => {
 
       console.log(`Processando projeto ${projectId} para a instância ${instanceId}`);
 
-      // Obtem detalhes da instância
       const instanceDetailsResponse = await fetch(
-        `https://api.omnistrate.cloud/2022-09-01-00/resource-instance/sp-JvkxkPhinN/falkordb/v1/prod/falkordb-free-customer-hosted/falkordb-free-falkordb-customer-hosted-model-omnistrate-multi-tenancy/free/${instanceId}?subscriptionId=${subscriptionId}`,
+        `https://api.omnistrate.cloud/2022-09-01-00/fleet/service/s-KgFDwg5vBS/environment/se-1iyXYFtYfA/instance/${instanceId}`,
         {
           method: "GET",
           headers: {
@@ -61,25 +58,29 @@ export const POST = async (request: Request) => {
       }
 
       const instanceDetails = await instanceDetailsResponse.json();
-      const falkordbUser = instanceDetails.result_params?.falkordbUser;
+      
+      const dynamicKey = Object.keys(instanceDetails.consumptionResourceInstanceResult.detailedNetworkTopology)[0];
+      const falkordbHostname = instanceDetails.consumptionResourceInstanceResult.detailedNetworkTopology[dynamicKey].clusterEndpoint;
+      const falkordbPort= String(instanceDetails.consumptionResourceInstanceResult.detailedNetworkTopology[dynamicKey].clusterPorts[0]);
+      console.log(falkordbPort);
 
-      if (!falkordbUser) {
+      if (!falkordbHostname) {
         console.error("FalkorDB user não encontrado nos detalhes da instância.");
         continue;
       }
 
-      console.log(`FalkorDB user obtido: ${falkordbUser}`);
+      console.log(`FalkorDB hostname obtido: ${falkordbHostname}`);
 
-      // Chama a API interna para salvar as variáveis no Vercel
       const saveEnvResponse = await fetch("http://localhost:3000/api/save-token-to-env", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${accessToken}`, // Passa o token diretamente
+          Authorization: `Bearer ${accessToken}`,
         },
         body: JSON.stringify({
           variables: [
-            { key: "FALKORDB_USER", value: falkordbUser },
+            { key: "FALKORDB_HOSTNAME", value: falkordbHostname },
+            { key: "FALKORDB_PORT", value: falkordbPort },
           ],
           projectId,
           teamId,

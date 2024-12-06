@@ -15,7 +15,7 @@ import FalkorLogo from "../../public/assets/images/falkor_logo.png";
 
 export default function Page() {
   const [step, setStep] = useState(1);
-  const { setSelectedProject, setTeamId, teamId, selectedProject } = useAuth(); // Use valores do contexto
+  const { setSelectedProject, setTeamId, teamId, selectedProject } = useAuth();
   const [subscriptionId, setSubscriptionId] = useState<string>("");
 
   const goToNextStep = () => setStep((prev) => prev + 1);
@@ -53,7 +53,7 @@ export default function Page() {
           <ProjectSelectionComponent
             onNext={goToNextStep}
             onBack={goToPreviousStep}
-            teamId={teamId} // Propaga o teamId
+            teamId={teamId}
             setSelectedProject={setSelectedProject}
           />
         )}
@@ -62,14 +62,14 @@ export default function Page() {
             onNext={goToInstanceCreation}
             onBack={goToPreviousStep}
             onFinish={handleFinish}
-            selectedProject={selectedProject} // Propaga o projeto selecionado
+            selectedProject={selectedProject}
             setSubscriptionId={setSubscriptionId}
           />
         )}
         {step === 4 && (
           <InstanceCreationForm
             subscriptionId={subscriptionId}
-            selectedProject={selectedProject} // Propaga o projeto selecionado
+            selectedProject={selectedProject}
             onCancel={goToPreviousStep}
             onSuccess={(user, password) => {
               console.log("Instância criada com sucesso!", { user, password });

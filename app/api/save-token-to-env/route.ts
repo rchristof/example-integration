@@ -1,6 +1,6 @@
 // app/api/save-token-to-env/route.ts
 import { NextResponse } from "next/server";
-import { db } from "@/utils/firebaseAdmin"; // Importa Firestore
+import { db } from "@/utils/firebaseAdmin";
 
 export const POST = async (request: Request) => {
   try {
@@ -8,7 +8,6 @@ export const POST = async (request: Request) => {
     let accessToken: string | null = null;
     let teamId: string | null = null;
 
-    // Lê o corpo da requisição uma única vez
     const requestBody = await request.json();
     const { variables, projectId, teamId: bodyTeamId } = requestBody;
 
@@ -17,11 +16,9 @@ export const POST = async (request: Request) => {
     }
 
     if (authHeader && authHeader.startsWith("Bearer ")) {
-      // Token enviado no cabeçalho
       accessToken = authHeader.replace("Bearer ", "");
       teamId = bodyTeamId || null;
     } else {
-      // Fallback para o token de sessão do cookie
       const sessionToken = request.headers.get("cookie")?.split("=")?.[1];
       if (!sessionToken) {
         return NextResponse.json({ message: "Sessão ausente." }, { status: 401 });

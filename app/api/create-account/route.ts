@@ -13,7 +13,6 @@ export const POST = async (request: Request) => {
       return NextResponse.json({ message: "Chave de API não encontrada." }, { status: 500 });
     }
 
-    // Enviar dados para a API externa
     const response = await fetch(
       "https://api.omnistrate.cloud/2022-09-01-00/customer-user-signup",
       {
@@ -31,7 +30,6 @@ export const POST = async (request: Request) => {
       }
     );
 
-    // Verificar se a resposta foi bem-sucedida
     if (!response.ok) {
       const errorData = await response.json();
       console.error("Erro na criação de conta na API externa:", errorData);
@@ -41,7 +39,6 @@ export const POST = async (request: Request) => {
       );
     }
 
-    // Conta criada com sucesso
     console.log("Conta criada com sucesso.");
     return NextResponse.json(
       {
@@ -51,7 +48,6 @@ export const POST = async (request: Request) => {
       { status: 201 }
     );
   } catch (error: any) {
-    // Capturar erros internos
     console.error("Erro inesperado na rota /api/create-account:", error);
     return NextResponse.json(
       { message: "Erro interno do servidor.", error: error.message },

@@ -8,7 +8,7 @@ import { useAuth } from "../contexts/AuthContext";
 export default function CallbackHandler() {
   const searchParams = useSearchParams();
   const code = searchParams?.get("code");
-  const { setTeamId } = useAuth(); // Atualiza o teamId no contexto
+  const { setTeamId } = useAuth();
 
   useEffect(() => {
     const handleAuthentication = async () => {
@@ -21,7 +21,7 @@ export default function CallbackHandler() {
         const response = await fetch("/api/exchange-code-for-access-token", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ code }), // Apenas o código é enviado
+          body: JSON.stringify({ code }),
         });
 
         if (!response.ok) {
@@ -36,7 +36,6 @@ export default function CallbackHandler() {
           sessionStorage.setItem("access_token", data.accessToken);
         }
 
-        // Atualizar o teamId no contexto
         if (data.teamId) {
           setTeamId(data.teamId);
         }

@@ -1,3 +1,4 @@
+// app/components/PlanSelectionComponent.tsx
 "use client";
 
 import { useAuth } from "../contexts/AuthContext";
@@ -117,7 +118,7 @@ export default function PlanSelectionComponent({
         throw new Error(errorData.message || "Erro ao criar subscrição.");
       }
   
-      let subscriptionId = await response.text(); // Lê a resposta como texto
+      let subscriptionId = await response.text();
       subscriptionId = subscriptionId.replace(/^"|"$/g, ""); // Remove as aspas no início e no final
   
       setActiveFreeSubscription({ id: subscriptionId });

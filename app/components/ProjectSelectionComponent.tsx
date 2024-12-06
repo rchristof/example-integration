@@ -21,42 +21,41 @@ export default function ProjectSelectionComponent({
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Função para salvar accessToken no Firebase após seleção do projeto
-  const saveAccessToken = async (projectId: string) => {
-    try {
-      const accessToken = sessionStorage.getItem("access_token"); // Recupera o token do sessionStorage
+  // const saveAccessToken = async (projectId: string) => {
+  //   try {
+  //     const accessToken = sessionStorage.getItem("access_token"); 
 
-      if (!teamId || !accessToken) {
-        throw new Error("TeamId ou accessToken ausente.");
-      }
+  //     if (!teamId || !accessToken) {
+  //       throw new Error("TeamId ou accessToken ausente.");
+  //     }
 
-      const response = await fetch("/api/save-vercel-token", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          teamId,
-          projectId,
-          accessToken,
-        }),
-      });
+  //     const response = await fetch("/api/save-vercel-token", {
+  //       method: "POST",
+  //       headers: { "Content-Type": "application/json" },
+  //       body: JSON.stringify({
+  //         teamId,
+  //         projectId,
+  //         accessToken,
+  //       }),
+  //     });
 
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.message || "Erro ao salvar o token.");
-      }
+  //     if (!response.ok) {
+  //       const data = await response.json();
+  //       throw new Error(data.message || "Erro ao salvar o token.");
+  //     }
 
-      console.log("Token salvo com sucesso no Firebase.");
-    } catch (error: any) {
-      setErrorMessage(error.message || "Erro ao salvar o token.");
-    }
-  };
+  //     console.log("Token salvo com sucesso no Firebase.");
+  //   } catch (error: any) {
+  //     setErrorMessage(error.message || "Erro ao salvar o token.");
+  //   }
+  // };
 
   useEffect(() => {
     const fetchProjects = async () => {
       try {
         setIsLoading(true);
 
-        const accessToken = sessionStorage.getItem("access_token"); // Recupera o token do sessionStorage
+        const accessToken = sessionStorage.getItem("access_token");
         if (!accessToken || !teamId) {
           throw new Error("Token de acesso ou TeamId ausente.");
         }
@@ -64,8 +63,8 @@ export default function ProjectSelectionComponent({
         const response = await fetch("/api/projects", {
           method: "GET",
           headers: {
-            Authorization: `Bearer ${accessToken}`, // Envia o token como Bearer
-            "x-team-id": teamId, // Envia o teamId como cabeçalho
+            Authorization: `Bearer ${accessToken}`,
+            "x-team-id": teamId,
           },
         });
 
@@ -84,17 +83,17 @@ export default function ProjectSelectionComponent({
     };
 
     fetchProjects();
-  }, [teamId]); // Dependência adicionada para atualizar quando o `teamId` mudar
+  }, [teamId]);
 
   const handleNext = async () => {
     if (selectedProject) {
       try {
         console.log("Projeto selecionado:", selectedProject);
-        setSelectedProject(selectedProject); // Atualiza o contexto com o projeto selecionado
+        setSelectedProject(selectedProject);
 
         // await saveAccessToken(selectedProject); // Salva o accessToken no Firebase após seleção do projeto
 
-        onNext(); // Avança para o próximo passo
+        onNext();
       } catch (error) {
         setErrorMessage("Erro ao salvar o token no Firebase. Tente novamente.");
       }

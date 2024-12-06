@@ -1,3 +1,4 @@
+// app/components/InstanceCreationForm.tsx
 "use client";
 
 import { useAuth } from "../contexts/AuthContext";
@@ -25,11 +26,9 @@ export default function InstanceCreationForm({
   onCancel,
 }: InstanceCreationFormProps) {
   const { selectedProject, subscriptionId } = useAuth();
-  console.log("subscriptionId", subscriptionId);
   const [instanceName, setInstanceName] = useState<string>("");
   const [instanceUser, setInstanceUser] = useState<string>("");
   const [instancePassword, setInstancePassword] = useState<string>("");
-
   const [selectedProvider, setSelectedProvider] = useState<string>("");
   const [selectedRegion, setSelectedRegion] = useState<string>("");
 
@@ -113,6 +112,27 @@ export default function InstanceCreationForm({
         if (!accessToken) {
           throw new Error("Token JWT ausente. Certifique-se de que está logado.");
         }
+        
+      // Save data to Firebase
+      const saveResponse = await fetch("/api/save-vercel-token", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          instanceId: data.id,
+          projectId: selectedProject,
+          subscriptionId: subscriptionId,
+          accessToken,
+        }),
+      });
+
+      if (!saveResponse.ok) {
+        const saveData = await saveResponse.json();
+        throw new Error(saveData.message || "Erro ao salvar informações no Firebase.");
+      }
+
+      console.log("Informações salvas com sucesso no Firebase.");
   
       const saveVariablesResponse = await fetch("/api/save-token-to-env", {
         method: "POST",
@@ -196,7 +216,7 @@ export default function InstanceCreationForm({
 
         <TextField
           label="Name"
-          InputLabelProps={{ shrink: true }} // Garante que o label seja exibido acima do campo
+          InputLabelProps={{ shrink: true }}
           placeholder="Enter instance name"
           value={instanceName}
           onChange={(e) => setInstanceName(e.target.value)}
@@ -205,7 +225,7 @@ export default function InstanceCreationForm({
 
         <TextField
           label="User"
-          InputLabelProps={{ shrink: true }} // Garante que o label seja exibido acima do campo
+          InputLabelProps={{ shrink: true }}
           placeholder="Enter instance user"
           value={instanceUser}
           onChange={(e) => setInstanceUser(e.target.value)}
@@ -214,7 +234,7 @@ export default function InstanceCreationForm({
 
         <TextField
           label="Password"
-          InputLabelProps={{ shrink: true }} // Garante que o label seja exibido acima do campo
+          InputLabelProps={{ shrink: true }}
           placeholder="Enter instance password"
           type="password"
           value={instancePassword}

@@ -8,6 +8,7 @@ import Card, { CardTitle } from "@components/NonDashboardComponents/Card";
 import Button from "@components/NonDashboardComponents/Button";
 import Select from "@components/NonDashboardComponents/FormElementsV2/Select";
 import MenuItem from "@components/NonDashboardComponents/FormElementsV2/MenuItem";
+import TextField from "@components/NonDashboardComponents/FormElementsV2/TextField";
 import { Box, Typography, Stack, CircularProgress } from "@mui/material";
 
 interface PlanSelectionComponentProps {
@@ -28,6 +29,7 @@ export default function PlanSelectionComponent({
   const [subscriptions, setSubscriptions] = useState<any[]>([]);
   const [instances, setInstances] = useState<any[]>([]);
   const [selectedInstance, setSelectedInstance] = useState<string | null>(null);
+  const [instancePassword, setInstancePassword] = useState<string>("");
   const [activeFreeSubscription, setActiveFreeSubscription] = useState<any | null>(null);
 
   useEffect(() => {
@@ -91,16 +93,15 @@ export default function PlanSelectionComponent({
     fetchSubscriptionsAndInstances();
   }, [setSubscriptionId]);
 
-  // Subscribe to a new plan
   const handleSubscribe = async () => {
     try {
       setIsLoading(true);
-  
+
       const jwtToken = sessionStorage.getItem("jwtToken");
       if (!jwtToken) {
         throw new Error("Token JWT ausente.");
       }
-  
+
       const response = await fetch("/api/subscriptions", {
         method: "POST",
         headers: {
@@ -112,16 +113,16 @@ export default function PlanSelectionComponent({
           serviceId: "s-KgFDwg5vBS",
         }),
       });
-  
+
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.message || "Erro ao criar subscrição.");
       }
-  
+
       let subscriptionId = await response.text();
       subscriptionId = subscriptionId.replace(/^"|"$/g, ""); // Remove as aspas no início e no final
-  
-      setActiveFreeSubscription({ id: subscriptionId });
+
+      setActiveFreeSubscription(subscriptionId);
       setSubscriptionId(subscriptionId);
       setInstances([]);
     } catch (error: any) {
@@ -130,49 +131,137 @@ export default function PlanSelectionComponent({
       setIsLoading(false);
     }
   };
-   
 
-  // Handle instance selection and save data in Firebase
   const handleSelectInstance = async (e: React.FormEvent) => {
     e.preventDefault();
-
+  
     if (!selectedInstance) {
       setErrorMessage("Por favor, selecione uma instância.");
       return;
     }
-
+  
+    if (!instancePassword) {
+      setErrorMessage("Por favor, insira a senha da instância.");
+      return;
+    }
+  
     try {
       setIsLoading(true);
+  
+      const jwtToken = sessionStorage.getItem("jwtToken");
+      if (!jwtToken) {
+        throw new Error("Token JWT ausente.");
+      }
       const accessToken = sessionStorage.getItem("access_token");
       if (!accessToken) {
-        throw new Error("Access token ausente.");
+        throw new Error("Token JWT ausente.");
       }
+      
 
-      // Save data to Firebase
-      const saveResponse = await fetch("/api/save-vercel-token", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          instanceId: selectedInstance,
-          projectId: selectedProject,
-          subscriptionId: activeFreeSubscription.id,
-          accessToken,
-        }),
-      });
-
-      if (!saveResponse.ok) {
-        const saveData = await saveResponse.json();
-        throw new Error(saveData.message || "Erro ao salvar informações no Firebase.");
+      // Chama a API para obter detalhes da instância
+      const instanceDetailsResponse = await fetch(
+        `/api/instances?instanceId=${selectedInstance}&subscriptionId=${activeFreeSubscription.id}`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${jwtToken}`,
+          },
+        }
+      );
+  
+      if (!instanceDetailsResponse.ok) {
+        const errorDetails = await instanceDetailsResponse.json();
+        throw new Error(errorDetails.message || "Erro ao obter detalhes da instância.");
       }
+  
+      const instanceDetails = await instanceDetailsResponse.json();
+      const status = instanceDetails.status;
+      const falkordbUser = instanceDetails.result_params?.falkordbUser;
+      const dynamicKey = Object.keys(
+        instanceDetails.detailedNetworkTopology
+      )[0];
+      const falkordbHostname =
+        instanceDetails.detailedNetworkTopology[dynamicKey]?.clusterEndpoint;
+      const falkordbPort =
+        instanceDetails.detailedNetworkTopology[dynamicKey]?.clusterPorts?.[0];
+      
+      console.log("Detalhes da instância:", instanceDetails);
+      console.log("user instância:", falkordbUser);
 
-      console.log("Informações salvas com sucesso no Firebase.");
+      
+  
+      switch (status) {
+        case "RUNNING":
+
+          if (!falkordbUser) {
+            throw new Error("Usuário não encontrado nos detalhes da instância.");
+          }
+          // Salvar diretamente nas variáveis do Vercel
+          await fetch("/api/save-token-to-env", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${accessToken}`,
+            },
+            credentials: "include",
+            body: JSON.stringify({
+              variables: [
+                { key: "FALKORDB_USER", value: falkordbUser },
+                { key: "FALKORDB_PASSWORD", value: instancePassword },
+                { key: "FALKORDB_HOSTNAME", value: falkordbHostname },
+                { key: "FALKORDB_PORT", value: `${falkordbPort}` }, // Converter para string
+              ],
+              projectId: selectedProject,
+            }),
+          });
+          break;
+  
+        case "DEPLOYING":
+          // Salvar nas variáveis do Vercel e no Firebase
+          await fetch("/api/save-token-to-env", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${accessToken}`,
+            },
+            credentials: "include",
+            body: JSON.stringify({
+              variables: [
+                { key: "FALKORDB_PASSWORD", value: instancePassword },
+              ],
+              projectId: selectedProject,
+            }),
+          });
+  
+          await fetch("/api/save-vercel-token", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+              instanceId: selectedInstance,
+              projectId: selectedProject,
+              subscriptionId: activeFreeSubscription.id,
+              accessToken,
+              instancePassword,
+              falkordbUser,
+            }),
+          });
+          break;
+  
+        case "DELETING":
+          throw new Error("Instâncias em DELETING não podem ser selecionadas.");
+  
+        default:
+          throw new Error("Status desconhecido.");
+      }
+  
+      console.log("Processo concluído com sucesso.");
+      onFinish();
     } catch (error: any) {
-      setErrorMessage(error.message || "Erro ao selecionar a instância.");
+      setErrorMessage(error.message || "Erro ao processar a instância.");
     } finally {
       setIsLoading(false);
-      onFinish();
     }
   };
 
@@ -219,11 +308,21 @@ export default function PlanSelectionComponent({
                     ))
                   )}
                 </Select>
+                {selectedInstance && (
+                  <TextField
+                    type="password"
+                    placeholder="Enter the instance password"
+                    value={instancePassword}
+                    onChange={(e) => setInstancePassword(e.target.value)}
+                    fullWidth
+                    sx={{ marginBottom: 2 }}
+                  />
+                )}
                 <Stack direction="row" spacing={2}>
                   <Button
                     variant="contained"
                     type="submit"
-                    disabled={!selectedInstance}
+                    disabled={!selectedInstance || !instancePassword}
                   >
                     Select Instance
                   </Button>

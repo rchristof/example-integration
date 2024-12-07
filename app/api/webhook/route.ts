@@ -62,6 +62,7 @@ export const POST = async (request: Request) => {
       const dynamicKey = Object.keys(instanceDetails.consumptionResourceInstanceResult.detailedNetworkTopology)[0];
       const falkordbHostname = instanceDetails.consumptionResourceInstanceResult.detailedNetworkTopology[dynamicKey].clusterEndpoint;
       const falkordbPort= String(instanceDetails.consumptionResourceInstanceResult.detailedNetworkTopology[dynamicKey].clusterPorts[0]);
+      const falkordbUser = instanceDetails.input_params.falkordbUser;
       console.log(falkordbPort);
 
       if (!falkordbHostname) {
@@ -79,6 +80,7 @@ export const POST = async (request: Request) => {
         },
         body: JSON.stringify({
           variables: [
+            { key: "FALKORDB_USER", value: falkordbUser },
             { key: "FALKORDB_HOSTNAME", value: falkordbHostname },
             { key: "FALKORDB_PORT", value: falkordbPort },
           ],

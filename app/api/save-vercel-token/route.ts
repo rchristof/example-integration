@@ -15,7 +15,7 @@ export const POST = async (request: Request) => {
       instanceId,
       projectId,
       subscriptionId,
-      createdAt: new Date().toISOString(),
+      createdAt: new Date().toUTCString(),
     };
 
     await db.collection("vercel_tokens").doc(docId).set(sessionData);

@@ -36,6 +36,9 @@ export const GET = async (request: Request) => {
     if (!response.ok) {
       return NextResponse.json(data, { status: response.status });
     }
+    if (instanceId) {
+      return NextResponse.json(data, { status: 200 });
+    }
 
     return NextResponse.json({ ids: data.ids }, { status: 200 });
   } catch (error) {

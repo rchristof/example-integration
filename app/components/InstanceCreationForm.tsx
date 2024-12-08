@@ -104,7 +104,7 @@ export default function InstanceCreationForm({
       }
 
       const variables = [
-        { key: "FALKORDB_USER", value: instanceUser },
+        // { key: "FALKORDB_USER", value: instanceUser },
         { key: "FALKORDB_PASSWORD", value: instancePassword },
       ];
 

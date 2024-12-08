@@ -96,6 +96,13 @@ export const POST = async (request: Request) => {
       }
 
       console.log(`Variáveis de ambiente salvas com sucesso no projeto ${projectId}.`);
+
+      try {
+        await db.collection("vercel_tokens").doc(doc.id).delete();
+        console.log(`Documento ${doc.id} apagado com sucesso.`);
+      } catch (deleteError) {
+        console.error(`Erro ao apagar o documento ${doc.id}:`, deleteError);
+      }
     }
 
     return NextResponse.json({ message: "Webhook processado com sucesso." }, { status: 200 });

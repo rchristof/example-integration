@@ -39,7 +39,7 @@ export default function PlanSelectionComponent({
 
         const jwtToken = sessionStorage.getItem("jwtToken");
         if (!jwtToken) {
-          throw new Error("Token JWT ausente. Certifique-se de que está logado.");
+          throw new Error("Missing user token. Make sure you are logged in.");
         }
 
         const subscriptionResponse = await fetch("/api/subscriptions", {
@@ -52,7 +52,7 @@ export default function PlanSelectionComponent({
         const subscriptionData = await subscriptionResponse.json();
 
         if (!subscriptionResponse.ok) {
-          throw new Error(subscriptionData.message || "Erro ao buscar subscrições.");
+          throw new Error(subscriptionData.message || "Error when searching for subscriptions.");
         }
 
         setSubscriptions(subscriptionData.subscriptions);
@@ -78,13 +78,13 @@ export default function PlanSelectionComponent({
           const instanceData = await instanceResponse.json();
 
           if (!instanceResponse.ok) {
-            throw new Error(instanceData.message || "Erro ao buscar instâncias.");
+            throw new Error(instanceData.message || "Error fetching instances.");
           }
 
           setInstances(instanceData.ids || []);
         }
       } catch (error: any) {
-        setErrorMessage(error.message || "Erro ao carregar informações.");
+        setErrorMessage(error.message || "Error loading information.");
       } finally {
         setIsLoading(false);
       }
@@ -99,7 +99,7 @@ export default function PlanSelectionComponent({
 
       const jwtToken = sessionStorage.getItem("jwtToken");
       if (!jwtToken) {
-        throw new Error("Token JWT ausente.");
+        throw new Error("Missing user Token.");
       }
 
       const response = await fetch("/api/subscriptions", {
@@ -116,17 +116,17 @@ export default function PlanSelectionComponent({
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.message || "Erro ao criar subscrição.");
+        throw new Error(errorData.message || "Error creating subscription.");
       }
 
       let subscriptionId = await response.text();
-      subscriptionId = subscriptionId.replace(/^"|"$/g, ""); // Remove as aspas no início e no final
+      subscriptionId = subscriptionId.replace(/^"|"$/g, "");
 
       setActiveFreeSubscription(subscriptionId);
       setSubscriptionId(subscriptionId);
       setInstances([]);
     } catch (error: any) {
-      setErrorMessage(error.message || "Erro ao criar subscrição.");
+      setErrorMessage(error.message || "Error creating subscription.");
     } finally {
       setIsLoading(false);
     }
@@ -136,12 +136,12 @@ export default function PlanSelectionComponent({
     e.preventDefault();
   
     if (!selectedInstance) {
-      setErrorMessage("Por favor, selecione uma instância.");
+      setErrorMessage("Please select an instance.");
       return;
     }
   
     if (!instancePassword) {
-      setErrorMessage("Por favor, insira a senha da instância.");
+      setErrorMessage("Please enter the instance password.");
       return;
     }
   
@@ -150,15 +150,13 @@ export default function PlanSelectionComponent({
   
       const jwtToken = sessionStorage.getItem("jwtToken");
       if (!jwtToken) {
-        throw new Error("Token JWT ausente.");
+        throw new Error("Missing user Token.");
       }
       const accessToken = sessionStorage.getItem("access_token");
       if (!accessToken) {
-        throw new Error("Token JWT ausente.");
+        throw new Error("Missing acess Token.");
       }
       
-
-      // Chama a API para obter detalhes da instância
       const instanceDetailsResponse = await fetch(
         `/api/instances?instanceId=${selectedInstance}&subscriptionId=${activeFreeSubscription.id}`,
         {
@@ -171,7 +169,7 @@ export default function PlanSelectionComponent({
   
       if (!instanceDetailsResponse.ok) {
         const errorDetails = await instanceDetailsResponse.json();
-        throw new Error(errorDetails.message || "Erro ao obter detalhes da instância.");
+        throw new Error(errorDetails.message || "Error getting instance details.");
       }
   
       const instanceDetails = await instanceDetailsResponse.json();
@@ -185,37 +183,10 @@ export default function PlanSelectionComponent({
       const falkordbPort =
         instanceDetails.detailedNetworkTopology[dynamicKey]?.clusterPorts?.[0];
       
-      console.log("Detalhes da instância:", instanceDetails);
-      console.log("user instância:", falkordbUser);
+      // console.log("Detalhes da instância:", instanceDetails);
+      // console.log("user instância:", falkordbUser);
 
-      
-  
       switch (status) {
-        case "RUNNING":
-
-          if (!falkordbUser) {
-            throw new Error("Usuário não encontrado nos detalhes da instância.");
-          }
-          // Salvar diretamente nas variáveis do Vercel
-          await fetch("/api/save-token-to-env", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "Authorization": `Bearer ${accessToken}`,
-            },
-            credentials: "include",
-            body: JSON.stringify({
-              variables: [
-                { key: "FALKORDB_USER", value: falkordbUser },
-                { key: "FALKORDB_PASSWORD", value: instancePassword },
-                { key: "FALKORDB_HOSTNAME", value: falkordbHostname },
-                { key: "FALKORDB_PORT", value: `${falkordbPort}` }, // Converter para string
-              ],
-              projectId: selectedProject,
-            }),
-          });
-          break;
-  
         case "DEPLOYING":
           // Salvar nas variáveis do Vercel e no Firebase
           await fetch("/api/save-token-to-env", {
@@ -250,16 +221,35 @@ export default function PlanSelectionComponent({
           break;
   
         case "DELETING":
-          throw new Error("Instâncias em DELETING não podem ser selecionadas.");
+          throw new Error("Instances in DELETING cannot be selected.");
   
         default:
-          throw new Error("Status desconhecido.");
+          if (!falkordbUser) {
+            throw new Error("User not found in instance details.");
+          }
+
+          await fetch("/api/save-token-to-env", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${accessToken}`,
+            },
+            credentials: "include",
+            body: JSON.stringify({
+              variables: [
+                { key: "FALKORDB_USER", value: falkordbUser },
+                { key: "FALKORDB_PASSWORD", value: instancePassword },
+                { key: "FALKORDB_HOSTNAME", value: falkordbHostname },
+                { key: "FALKORDB_PORT", value: `${falkordbPort}` },
+              ],
+              projectId: selectedProject,
+            }),
+          });
       }
-  
-      console.log("Processo concluído com sucesso.");
+
       onFinish();
     } catch (error: any) {
-      setErrorMessage(error.message || "Erro ao processar a instância.");
+      setErrorMessage(error.message || "Error processing instance.");
     } finally {
       setIsLoading(false);
     }
@@ -267,7 +257,7 @@ export default function PlanSelectionComponent({
 
   return (
     <MainImageLayout
-      pageTitle="Seleção de Subscrição"
+      pageTitle="Subscription Plans"
       orgName="FalkorDB"
       orgLogoURL="/assets/images/falkor_logo.png"
     >
@@ -294,7 +284,7 @@ export default function PlanSelectionComponent({
                   onChange={(e) => setSelectedInstance(e.target.value)}
                   displayEmpty
                   sx={{ marginBottom: 2 }}
-                  disabled={instances.length === 0} // Desativa caso não existam instâncias
+                  disabled={instances.length === 0} 
                 >
                   {instances.length === 0 ? (
                     <MenuItem disabled value="">
@@ -328,7 +318,7 @@ export default function PlanSelectionComponent({
                   </Button>
                   <Button
                     variant="outlined"
-                    onClick={onNext}
+                    onClick={() => onNext()}
                     disabled={instances.length > 0} // Desativa se já houver instâncias
                   >
                     Create Instance

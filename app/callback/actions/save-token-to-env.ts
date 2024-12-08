@@ -29,9 +29,9 @@ export async function saveTokenToEnv(
       throw new Error("Failed to save the environment variable.");
     }
 
-    console.log("Variável de ambiente 'sensitive' salva com sucesso.");
+    // console.log("Environment variable 'sensitive' saved successfully.");
   } catch (error) {
-    console.error("Erro ao salvar a variável de ambiente:", error);
+    console.error("Error saving environment variable:", error);
     throw error;
   }
 }

@@ -12,7 +12,7 @@ export const POST = async (request: Request) => {
     const { variables, projectId, teamId: bodyTeamId } = requestBody;
 
     if (!variables || !projectId) {
-      return NextResponse.json({ message: "Parâmetros ausentes." }, { status: 400 });
+      return NextResponse.json({ message: "Missing parameters." }, { status: 400 });
     }
 
     if (authHeader && authHeader.startsWith("Bearer ")) {
@@ -21,12 +21,12 @@ export const POST = async (request: Request) => {
     } else {
       const sessionToken = request.headers.get("cookie")?.split("=")?.[1];
       if (!sessionToken) {
-        return NextResponse.json({ message: "Sessão ausente." }, { status: 401 });
+        return NextResponse.json({ message: "Missing session." }, { status: 401 });
       }
 
       const sessionDoc = await db.collection("sessions").doc(sessionToken).get();
       if (!sessionDoc.exists) {
-        return NextResponse.json({ message: "Sessão inválida ou expirada." }, { status: 401 });
+        return NextResponse.json({ message: "Invalid or expired session." }, { status: 401 });
       }
 
       const sessionData = sessionDoc.data();
@@ -35,7 +35,7 @@ export const POST = async (request: Request) => {
     }
 
     if (!accessToken) {
-      return NextResponse.json({ message: "Token de acesso ausente." }, { status: 401 });
+      return NextResponse.json({ message: "Missing access token." }, { status: 401 });
     }
 
     const url = teamId
@@ -60,7 +60,7 @@ export const POST = async (request: Request) => {
       if (!response.ok) {
         const data = await response.json();
         return NextResponse.json(
-          { message: data.error?.message || "Erro ao salvar variável." },
+          { message: data.error?.message || "Internal Error." },
           { status: response.status }
         );
       }
@@ -68,7 +68,7 @@ export const POST = async (request: Request) => {
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Erro interno do servidor:", error);
-    return NextResponse.json({ message: "Erro interno do servidor." }, { status: 500 });
+    console.error("Internal server error:", error);
+    return NextResponse.json({ message: "Internal server error." }, { status: 500 });
   }
 };

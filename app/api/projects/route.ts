@@ -3,12 +3,11 @@ import { NextResponse } from "next/server";
 
 export async function GET(request: Request) {
   try {
-    // Recupera o token de acesso enviado no cabeçalho
     const accessToken = request.headers.get("Authorization")?.replace("Bearer ", "");
     const teamId = request.headers.get("x-team-id");
 
     if (!accessToken || !teamId) {
-      return NextResponse.json({ message: "Token de acesso ou TeamId ausente." }, { status: 401 });
+      return NextResponse.json({ message: "Missing access token or TeamId, restart the installation." }, { status: 401 });
     }
 
     const response = await fetch("https://api.vercel.com/v9/projects", {

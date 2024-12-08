@@ -29,18 +29,18 @@ export default function InstanceCreationForm({
   const [instanceName, setInstanceName] = useState<string>("");
   const [instanceUser, setInstanceUser] = useState<string>("");
   const [instancePassword, setInstancePassword] = useState<string>("");
-  const [selectedProvider, setSelectedProvider] = useState<string>("");
-  const [selectedRegion, setSelectedRegion] = useState<string>("");
+  const [selectedProvider, setSelectedProvider] = useState<keyof typeof providers | "">("");
+  const [selectedRegion, setSelectedRegion] = useState<keyof typeof regions | "">("");
 
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  const providers = [
+  const providers: { id: string; name: string }[] = [
     { id: "aws", name: "AWS" },
     { id: "gcp", name: "GCP" },
   ];
 
-  const regions = {
+  const regions: { [key: string]: { id: string; name: string }[] } = {
     aws: [
       { id: "ap-south-1", name: "Asia Pacific (Mumbai)" },
       { id: "eu-west-1", name: "EU (Ireland)" },
@@ -60,7 +60,7 @@ export default function InstanceCreationForm({
   const handleCreateInstance = async () => {
     try {
       if (!selectedProvider || !selectedRegion || !instanceName || !instanceUser || !instancePassword) {
-        setErrorMessage("Por favor, preencha todos os campos.");
+        setErrorMessage("Please fill in all fields.");
         return;
       }
 
@@ -84,7 +84,7 @@ export default function InstanceCreationForm({
 
       const jwtToken = sessionStorage.getItem("jwtToken");
         if (!jwtToken) {
-          throw new Error("Token JWT ausente. Certifique-se de que está logado.");
+          throw new Error("Missing user token. Make sure you are logged in.");
         }
 
       const response = await fetch("/api/instances", {
@@ -100,7 +100,7 @@ export default function InstanceCreationForm({
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || "Erro ao criar a instância.");
+        throw new Error(data.message || "Error creating instance.");
       }
 
       const variables = [
@@ -110,7 +110,7 @@ export default function InstanceCreationForm({
 
       const accessToken = sessionStorage.getItem("access_token");
         if (!accessToken) {
-          throw new Error("Token JWT ausente. Certifique-se de que está logado.");
+          throw new Error("Missing user token. Make sure you are logged in.");
         }
         
       // Save data to Firebase
@@ -129,10 +129,10 @@ export default function InstanceCreationForm({
 
       if (!saveResponse.ok) {
         const saveData = await saveResponse.json();
-        throw new Error(saveData.message || "Erro ao salvar informações no Firebase.");
+        throw new Error(saveData.message || "Error saving information, please restart.");
       }
 
-      console.log("Informações salvas com sucesso no Firebase.");
+      // console.log("Information successfully saved to Firebase.");
   
       const saveVariablesResponse = await fetch("/api/save-token-to-env", {
         method: "POST",
@@ -149,21 +149,21 @@ export default function InstanceCreationForm({
   
       if (!saveVariablesResponse.ok) {
         const saveErrorData = await saveVariablesResponse.json();
-        console.error("Erro ao salvar variáveis de ambiente:", saveErrorData);
-        throw new Error(saveErrorData.message || "Erro ao salvar as variáveis de ambiente.");
+        console.error("Error saving environment variables:", saveErrorData);
+        throw new Error(saveErrorData.message || "Error saving environment variables.");
       }
   
-      console.log("Variáveis de ambiente salvas com sucesso.");
+      // console.log("Environment variables saved successfully.");
 
       onSuccess(instanceUser, instancePassword);
     } catch (error: any) {
-      setErrorMessage(error.message || "Erro ao criar a instância.");
+      setErrorMessage(error.message || "Error creating instance.");
     } finally {
       setIsLoading(false);
     }
   };
 
-  const availableRegions = selectedProvider ? regions[selectedProvider] : [];
+  const availableRegions = selectedProvider ? regions[selectedProvider as string] : [];
 
   return (
     <MainImageLayout
@@ -185,7 +185,7 @@ export default function InstanceCreationForm({
         <Select
           value={selectedProvider}
           onChange={(e) => {
-            setSelectedProvider(e.target.value);
+            setSelectedProvider(e.target.value as keyof typeof providers);
             setSelectedRegion("");
           }}
           displayEmpty
@@ -245,7 +245,7 @@ export default function InstanceCreationForm({
         <Stack direction="row" justifyContent="space-between">
           <Button
             onClick={handleCreateInstance}
-            isLoading={isLoading}
+            // isLoading={isLoading}
             disabled={isLoading}
             fullWidth
           >

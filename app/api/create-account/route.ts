@@ -9,8 +9,8 @@ export const POST = async (request: Request) => {
     const apikey = process.env.ADMIN_BEARER;
 
     if (!apikey) {
-      console.error("Chave de API não encontrada.");
-      return NextResponse.json({ message: "Chave de API não encontrada." }, { status: 500 });
+      console.error("Error: API key not found.");
+      return NextResponse.json({ message: "API key not found." }, { status: 500 });
     }
 
     const response = await fetch(
@@ -32,25 +32,24 @@ export const POST = async (request: Request) => {
 
     if (!response.ok) {
       const errorData = await response.json();
-      console.error("Erro na criação de conta na API externa:", errorData);
+      console.error("Error creating account in external API:", errorData);
       return NextResponse.json(
-        { message: errorData.message || "Erro ao criar conta." },
+        { message: errorData.message || "Error creating account." },
         { status: response.status }
       );
     }
 
-    console.log("Conta criada com sucesso.");
     return NextResponse.json(
       {
         success: true,
-        message: "Conta criada com sucesso. Verifique seu email para confirmação.",
+        message: "Account created successfully. Check your email for confirmation.",
       },
       { status: 201 }
     );
   } catch (error: any) {
-    console.error("Erro inesperado na rota /api/create-account:", error);
+    console.error("Unexpected error:", error);
     return NextResponse.json(
-      { message: "Erro interno do servidor.", error: error.message },
+      { message: "Internal server error.", error: error.message },
       { status: 500 }
     );
   }

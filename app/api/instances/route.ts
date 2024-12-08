@@ -8,7 +8,7 @@ export const GET = async (request: Request) => {
   try {
     const jwtToken = request.headers.get("Authorization")?.replace("Bearer ", "");
     if (!jwtToken) {
-      return NextResponse.json({ message: "Token de autenticação ausente." }, { status: 401 });
+      return NextResponse.json({ message: "Missing authentication token, reauthenticate." }, { status: 401 });
     }
 
     const { searchParams } = new URL(request.url);
@@ -16,7 +16,7 @@ export const GET = async (request: Request) => {
     const instanceId = searchParams.get("instanceId");
 
     if (!subscriptionId) {
-      return NextResponse.json({ message: "ID da assinatura ausente." }, { status: 400 });
+      return NextResponse.json({ message: "Missing subscription ID." }, { status: 400 });
     }
 
     let apiUrl = `${BASE_API_URL}?subscriptionId=${subscriptionId}`;
@@ -42,8 +42,8 @@ export const GET = async (request: Request) => {
 
     return NextResponse.json({ ids: data.ids }, { status: 200 });
   } catch (error) {
-    console.error("Erro ao buscar instâncias:", error);
-    return NextResponse.json({ message: "Erro interno do servidor." }, { status: 500 });
+    console.error("Error fetching instances:", error);
+    return NextResponse.json({ message: "Internal server error." }, { status: 500 });
   }
 };
 
@@ -51,13 +51,13 @@ export const POST = async (request: Request) => {
   try {
     const jwtToken = request.headers.get("Authorization")?.replace("Bearer ", "");
     if (!jwtToken) {
-      return NextResponse.json({ message: "Token de autenticação ausente." }, { status: 401 });
+      return NextResponse.json({ message: "Missing authentication token." }, { status: 401 });
     }
 
     const { subscriptionId, instanceData } = await request.json();
 
     if (!subscriptionId || !instanceData) {
-      return NextResponse.json({ message: "Parâmetros ausentes." }, { status: 400 });
+      return NextResponse.json({ message: "Missing parameters." }, { status: 400 });
     }
 
     const createInstanceUrl = `${BASE_API_URL}?subscriptionId=${subscriptionId}`;
@@ -77,7 +77,7 @@ export const POST = async (request: Request) => {
 
     return NextResponse.json(data, { status: 200 });
   } catch (error) {
-    console.error("Erro ao criar instância:", error);
-    return NextResponse.json({ message: "Erro interno do servidor." }, { status: 500 });
+    console.error("Error creating instance:", error);
+    return NextResponse.json({ message: "Internal server error." }, { status: 500 });
   }
 };

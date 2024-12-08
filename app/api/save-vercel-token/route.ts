@@ -6,7 +6,7 @@ export const POST = async (request: Request) => {
     const { instanceId, projectId, accessToken, subscriptionId } = await request.json();
 
     if (!instanceId || !projectId || !accessToken || !subscriptionId) {
-      return NextResponse.json({ message: "Parâmetros ausentes." }, { status: 400 });
+      return NextResponse.json({ message: "Missing parameters, restart the installation." }, { status: 400 });
     }
 
     const docId = `${instanceId}:${projectId}`;
@@ -20,9 +20,9 @@ export const POST = async (request: Request) => {
 
     await db.collection("vercel_tokens").doc(docId).set(sessionData);
 
-    return NextResponse.json({ success: true, message: "Token salvo com sucesso" });
+    return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Erro ao salvar token:", error);
-    return NextResponse.json({ message: "Erro interno do servidor." }, { status: 500 });
+    console.error("Error saving token:", error);
+    return NextResponse.json({ message: "Internal server error." }, { status: 500 });
   }
 };

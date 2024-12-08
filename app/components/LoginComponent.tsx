@@ -14,6 +14,7 @@ import DisplayHeading from "@components/NonDashboardComponents/DisplayHeading";
 
 interface LoginComponentProps {
   onNext: () => void;
+  // onNext: (teamIdFromLogin: any) => void;
 }
 
 export default function LoginComponent({ onNext }: LoginComponentProps) {
@@ -25,14 +26,14 @@ export default function LoginComponent({ onNext }: LoginComponentProps) {
   const [notification, setNotification] = useState<string | null>(null); // Para exibir mensagens de sucesso
 
   const validationSchema = Yup.object().shape({
-    email: Yup.string().email("Email inválido").required("Email é obrigatório"),
-    password: Yup.string().required("Senha é obrigatória"),
+    email: Yup.string().email("Invalid email").required("Email is required"),
+    password: Yup.string().required("Password is required"),
     companyName: isLogin
       ? Yup.string()
-      : Yup.string().required("Nome da empresa é obrigatório"),
+      : Yup.string().required("Company name is required"),
     name: isLogin
       ? Yup.string()
-      : Yup.string().required("Seu nome é obrigatório"),
+      : Yup.string().required("Name is required"),
   });
 
   const formik = useFormik({
@@ -80,11 +81,11 @@ export default function LoginComponent({ onNext }: LoginComponentProps) {
           "Registration successful! Check your email to confirm your account."
         );
       } else {
-        setErrorMessage(data.message || "Erro ao criar conta.");
+        setErrorMessage(data.message || "Error creating account.");
       }
     } catch (error: any) {
-      console.error("Erro ao criar conta:", error);
-      setErrorMessage(error.message || "Erro ao criar conta.");
+      console.error("Error creating account:", error);
+      setErrorMessage(error.message || "Error creating account.");
     } finally {
       setIsLoading(false);
     }
@@ -114,11 +115,11 @@ export default function LoginComponent({ onNext }: LoginComponentProps) {
         setIsAuthenticated(true);
         onNext();
       } else {
-        setErrorMessage(data.message || "Erro ao fazer login.");
+        setErrorMessage(data.message || "Error when logging in.");
       }
     } catch (error: any) {
-      console.error("Erro ao fazer login:", error);
-      setErrorMessage(error.message || "Erro ao conectar com a API.");
+      console.error("Error when logging in:", error);
+      setErrorMessage(error.message || "Internal error.");
     } finally {
       setIsLoading(false);
     }

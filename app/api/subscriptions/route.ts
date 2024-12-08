@@ -5,7 +5,7 @@ export const GET = async (request: Request) => {
   try {
     const jwtToken = request.headers.get("Authorization")?.replace("Bearer ", "");
     if (!jwtToken) {
-      return NextResponse.json({ message: "Token de autenticação ausente." }, { status: 401 });
+      return NextResponse.json({ message: "Missing authentication token, re-authenticate." }, { status: 401 });
     }
 
     const response = await fetch("https://api.omnistrate.cloud/2022-09-01-00/subscription", {
@@ -23,8 +23,8 @@ export const GET = async (request: Request) => {
 
     return NextResponse.json({ subscriptions: data.subscriptions }, { status: 200 });
   } catch (error) {
-    console.error("Erro ao buscar subscrições:", error);
-    return NextResponse.json({ message: "Erro interno do servidor." }, { status: 500 });
+    console.error("Error when searching for subscriptions:", error);
+    return NextResponse.json({ message: "Internal server error." }, { status: 500 });
   }
 };
 
@@ -32,7 +32,7 @@ export const POST = async (request: Request) => {
   try {
     const jwtToken = request.headers.get("Authorization")?.replace("Bearer ", "");
     if (!jwtToken) {
-      return NextResponse.json({ message: "Token de autenticação ausente." }, { status: 401 });
+      return NextResponse.json({ message: "Missing authentication token, re-authenticate." }, { status: 401 });
     }
 
     const body = await request.json();
@@ -53,7 +53,7 @@ export const POST = async (request: Request) => {
 
     return NextResponse.json(data, { status: 200 });
   } catch (error) {
-    console.error("Erro ao criar subscrição:", error);
-    return NextResponse.json({ message: "Erro interno do servidor." }, { status: 500 });
+    console.error("Error creating subscription:", error);
+    return NextResponse.json({ message: "Internal server error." }, { status: 500 });
   }
 };

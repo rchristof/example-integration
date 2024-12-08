@@ -21,8 +21,8 @@ export default function Page() {
   const goToNextStep = () => setStep((prev) => prev + 1);
   const goToPreviousStep = () => setStep((prev) => prev - 1);
 
-  const goToInstanceCreation = (subscriptionId: string) => {
-    setSubscriptionId(subscriptionId);
+  const goToInstanceCreation = (subscriptionId?: string) => {
+    setSubscriptionId(subscriptionId || "");
     setStep(4);
   };
 
@@ -43,7 +43,7 @@ export default function Page() {
           >
             <LoginComponent
               onNext={(teamIdFromLogin) => {
-                setTeamId(teamIdFromLogin); // Atualiza o teamId ao autenticar
+                // setTeamId(teamIdFromLogin);
                 goToNextStep();
               }}
             />
@@ -52,7 +52,6 @@ export default function Page() {
         {step === 2 && (
           <ProjectSelectionComponent
             onNext={goToNextStep}
-            onBack={goToPreviousStep}
             teamId={teamId}
             setSelectedProject={setSelectedProject}
           />
@@ -62,17 +61,16 @@ export default function Page() {
             onNext={goToInstanceCreation}
             onBack={goToPreviousStep}
             onFinish={handleFinish}
-            selectedProject={selectedProject}
-            setSubscriptionId={setSubscriptionId}
+            selectedProject={selectedProject || ""}
           />
         )}
         {step === 4 && (
           <InstanceCreationForm
             subscriptionId={subscriptionId}
-            selectedProject={selectedProject}
+            selectedProject={selectedProject || ""}
             onCancel={goToPreviousStep}
             onSuccess={(user, password) => {
-              console.log("Instância criada com sucesso!", { user, password });
+              // console.log("Instance created successfully!", { user, password });
               handleFinish();
             }}
           />

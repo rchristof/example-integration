@@ -7,7 +7,7 @@ export const POST = async (request: Request) => {
     const apikey = process.env.ADMIN_BEARER;
 
     if (!apikey) {
-      return NextResponse.json({ message: "Chave de API não encontrada." }, { status: 500 });
+      return NextResponse.json({ message: "API key not found, restart the installation" }, { status: 500 });
     }
 
     const response = await fetch("https://api.omnistrate.cloud/2022-09-01-00/customer-user-signin", {
@@ -28,12 +28,12 @@ export const POST = async (request: Request) => {
     const { jwtToken } = data;
 
     if (!jwtToken) {
-      return NextResponse.json({ message: "Token de autenticação não recebido." }, { status: 500 });
+      return NextResponse.json({ message: "Authentication token not received." }, { status: 500 });
     }
 
     // Retorna o token diretamente para o cliente
     return NextResponse.json({ jwtToken, success: true });
   } catch (error) {
-    return NextResponse.json({ message: "Erro interno do servidor." }, { status: 500 });
+    return NextResponse.json({ message: "Internal server error." }, { status: 500 });
   }
 };

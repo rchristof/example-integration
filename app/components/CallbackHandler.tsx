@@ -13,7 +13,7 @@ export default function CallbackHandler() {
   useEffect(() => {
     const handleAuthentication = async () => {
       if (!code) {
-        console.error("Código de autorização ausente");
+        console.error("Missing authorization code, action not permitted.");
         return;
       }
 
@@ -25,11 +25,11 @@ export default function CallbackHandler() {
         });
 
         if (!response.ok) {
-          throw new Error("Erro ao trocar código por token de acesso.");
+          throw new Error("Error when exchanging code for access token.");
         }
 
         const data = await response.json();
-        console.log("Autenticação bem-sucedida com a API:", data);
+        // console.log("Successful authentication with the API:", data);
 
         // Armazenar o accessToken no sessionStorage
         if (data.accessToken) {
@@ -40,7 +40,7 @@ export default function CallbackHandler() {
           setTeamId(data.teamId);
         }
       } catch (error) {
-        console.error("Erro durante a autenticação:", error);
+        console.error("Error during authentication:", error);
       }
     };
 

@@ -88,23 +88,23 @@ export default function ProjectSelectionComponent({
   const handleNext = async () => {
     if (selectedProject) {
       try {
-        console.log("Projeto selecionado:", selectedProject);
+        // console.log("Projeto selecionado:", selectedProject);
         setSelectedProject(selectedProject);
 
         // await saveAccessToken(selectedProject); // Salva o accessToken no Firebase após seleção do projeto
 
         onNext();
       } catch (error) {
-        setErrorMessage("Erro ao salvar o token no Firebase. Tente novamente.");
+        setErrorMessage("Error saving token. Try again.");
       }
     } else {
-      setErrorMessage("Por favor, selecione um projeto.");
+      setErrorMessage("Please select a project.");
     }
   };
 
   return (
     <MainImageLayout
-      pageTitle="Seleção de Projeto"
+      pageTitle="Project Selection"
       orgName="FalkorDB"
       orgLogoURL="/assets/images/falkor_logo.png"
     >
@@ -114,7 +114,7 @@ export default function ProjectSelectionComponent({
           <p className="text-red-500 mb-4 text-center">{errorMessage}</p>
         )}
         {isLoading ? (
-          <p className="text-center">Carregando projetos...</p>
+          <p className="text-center">Loading projects...</p>
         ) : projects.length > 0 ? (
           <Select
             value={selectedProject}

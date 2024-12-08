@@ -64,12 +64,11 @@ export const POST = async (request: Request) => {
       const falkordbPort= String(instanceDetails.consumptionResourceInstanceResult.detailedNetworkTopology[dynamicKey].clusterPorts[0]);
       const falkordbUser = instanceDetails.input_params.falkordbUser;
 
-      if (!falkordbHostname) {
-        console.error("FalkorDB user not found in instance details.");
+      if (!falkordbHostname || !falkordbPort || !falkordbUser) {
+        console.error(`FalkorDB user, falkordbPort or falkordbHostname not found in instance details, for instance ${instanceId}.`);
+        throw new Error(`Error getting details for instance  ${instanceId}.`);
         continue;
       }
-
-      // console.log(`FalkorDB hostname obtained: ${falkordbHostname}`);
 
       const saveEnvResponse = await fetch("http://localhost:3000/api/save-token-to-env", {
         method: "POST",
@@ -91,14 +90,15 @@ export const POST = async (request: Request) => {
       if (!saveEnvResponse.ok) {
         const saveEnvError = await saveEnvResponse.json();
         console.error("Error saving environment variables in Vercel using the internal API:", saveEnvError);
-        continue;
+        throw new Error(saveEnvError.message || "Error saving environment variables.");
+        // continue;
       }
 
       // console.log(`Environment variables successfully saved in the project ${projectId}.`);
 
       try {
         await db.collection("vercel_tokens").doc(doc.id).delete();
-        // console.log(`Document ${doc.id} successfully deleted.`);
+        console.log(`Document ${doc.id} successfully deleted.`);
       } catch (deleteError) {
         console.error(`Error deleting document ${doc.id}:`, deleteError);
       }
